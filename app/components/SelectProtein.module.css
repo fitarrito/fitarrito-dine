@@ -1,0 +1,152 @@
+/* ChooseVariantCard.module.css */
+
+.wrapper {
+    width: 100%;
+  }
+  
+  .proteinSection {
+    margin-bottom: 1rem;
+    margin-top: -0.25rem;
+  }
+  
+  .chooseTitle {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.75rem;
+  }
+  
+  .proteinLayout {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  @media (min-width: 640px) {
+    .proteinLayout {
+      flex-direction: row;
+      gap: 1.5rem;
+    }
+  }
+  
+  .proteinGroup {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .proteinHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .groupTitle {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #4b5563;
+    letter-spacing: 0.03em;
+  }
+  
+  .buttonGroup {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .proteinButton {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.75rem;
+    border: none;
+    border-radius: 10px;
+    background: #e5e7eb;
+    color: #374151;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+  
+  .proteinButton:hover {
+    background: #d1d5db;
+  }
+  
+  .activeProtein {
+    background: #dc2626;
+    color: white;
+  }
+  
+  .iconWrap {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  
+  .iconImage {
+    object-fit: contain;
+  }
+  
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  
+  .vegDot {
+    background: #22c55e;
+  }
+  
+  .nonVegDot {
+    background: #ef4444;
+  }
+  
+  .price {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #111827;
+  }
+  
+  .sizeSection {
+    display: flex;
+    gap: 1rem;
+    margin: 0.75rem 0;
+  }
+  
+  .sizeLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.95rem;
+    color: #374151;
+    cursor: pointer;
+  }
+  
+  .nutritionGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 0.85rem;
+    background: #d1d5db;
+    border-radius: 12px;
+  }
+  
+  .badge {
+    text-align: center;
+  }
+  
+  .badgeLabel {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #6b7280;
+  }
+  
+  .badgeValue {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #15803d;
+  }

@@ -1,0 +1,173 @@
+/* DisplayTabContent.module.css */
+
+.cardContainer {
+    width: 100%;
+  }
+  
+  .fullWidthCard {
+    grid-column: span 2;
+    max-width: 75vw;
+    margin: 0 auto;
+  }
+  
+  .card {
+    background: #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    width: 100%;
+  }
+  
+  .horizontalCard {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  @media (min-width: 640px) {
+    .horizontalCard {
+      flex-direction: row;
+      align-items: stretch;
+    }
+  }
+  
+  .imageWrapper {
+    position: relative;
+    height: 8rem;
+    width: 100%;
+    overflow: hidden;
+  }
+  
+  @media (min-width: 640px) {
+    .imageWrapper {
+      height: 14rem;
+    }
+  }
+  
+  @media (min-width: 1280px) {
+    .imageWrapper {
+      height: 16rem;
+    }
+  }
+  
+  .horizontalImageWrapper {
+    position: relative;
+    width: 100%;
+    min-height: 320px;
+    background: #e5e7eb;
+    flex-shrink: 0;
+    padding: 1rem;
+  }
+  
+  @media (min-width: 640px) {
+    .horizontalImageWrapper {
+      width: 55%;
+      min-height: 480px;
+      padding: 1.5rem;
+    }
+  }
+  
+  .imageInner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .imageInner:hover .containImage {
+    opacity: 0.6; /* adjust */
+  }
+  
+  .coverImage {
+    object-fit: cover;
+    border-radius: 12px 12px 0 0;
+  }
+  
+  .containImage {
+    object-fit: contain;
+  }
+  
+  .cardContent {
+    width: 100%;
+    padding: 1rem;
+    background: #f3f4f6;
+    color: #111827;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+  }
+  
+  @media (min-width: 640px) {
+    .cardContent {
+      width: 45%;
+      padding: 1.5rem;
+    }
+  }
+  
+  .cardTitle {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ef4444;
+    padding-bottom: 1.25rem;
+  }
+  
+  @media (min-width: 640px) {
+    .cardTitle {
+      font-size: 1.5rem;
+    }
+  }
+  
+  .mobileButtonWrap {
+    display: flex;
+    align-items: center;
+    margin-top: 1rem;
+  }
+  
+  @media (min-width: 640px) {
+    .mobileButtonWrap {
+      display: none;
+    }
+  }
+  .imageInner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .addToCartOverlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 200ms ease, transform 200ms ease;
+    pointer-events: none;
+  }
+  
+  .imageInner:hover .addToCartOverlay {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .addToCartButton {
+    pointer-events: auto;
+    padding: 0.5rem 0.9rem;
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .primaryButton {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s ease;
+  }
+  
+  .primaryButton:hover {
+    opacity: 0.9;
+  }

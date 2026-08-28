@@ -1,0 +1,48 @@
+/* Base button */
+.button {
+    font-weight: 700;
+    padding: 0.75rem 1.5rem; /* py-3 px-6 */
+    border-radius: 9999px; /* rounded-full */
+    transition: opacity 0.2s ease;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: none;
+    cursor: pointer;
+  }
+  
+  /* Hover */
+  .button:hover {
+    opacity: 0.9;
+  }
+  
+  /* Disabled */
+  .button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  /* Full width */
+  .fullWidth {
+    width: 100%;
+  }
+  
+  /* Variants */
+  .primary {
+    background: var(--customTheme, #0f766e);
+    color: white;
+  }
+  
+  .secondary {
+    background: white;
+    color: var(--customTheme, #0f766e);
+    border: 2px solid var(--customTheme, #0f766e);
+  }
+  
+  .outline {
+    background: transparent;
+    color: var(--customTheme, #0f766e);
+    border: 2px solid var(--customTheme, #0f766e);
+  }

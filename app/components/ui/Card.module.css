@@ -1,0 +1,77 @@
+.card {
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 400px;
+    min-height: 180px;
+    cursor: default;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s,
+      background-color 0.2s,
+      color 0.2s;
+    background-color: #fc1e1e;
+    color: white;
+  }
+  
+  .clickable {
+    cursor: pointer;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    background-color: white;
+    color: #333333;
+  }
+  
+  .card:hover .iconContainer,
+  .card:hover .primaryText {
+    color: #333333;
+  }
+  
+  .card:hover .iconContainer svg {
+    color: #333333;
+    fill: #333333;
+  }
+  
+  .iconContainer {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    font-size: 3.5rem;
+    color: white;
+    transition: color 0.2s;
+    z-index: 1;
+  }
+  
+  .primaryText {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+      "Ubuntu", "Cantarell", sans-serif;
+    color: white;
+    line-height: 1.3;
+    text-align: right;
+    transition: color 0.2s;
+    max-width: 75%;
+    letter-spacing: -0.02em;
+    word-wrap: break-word;
+  }
+  
+  .secondaryText {
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: #757575;
+    line-height: 1.4;
+    margin-top: 0.5rem;
+  }

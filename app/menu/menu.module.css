@@ -1,0 +1,88 @@
+.decoratorBlob2 {
+  pointer-events: none;
+  z-index: -20;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 20rem;
+  width: 20rem;
+  opacity: 0.15;
+  transform: translateX(-15rem);
+}
+
+.menuContainer {
+  width: 100%;
+}
+
+.pageHeading {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.categorySection {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.tabsControl {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.tabControl {
+  cursor: pointer;
+  padding: 0.65rem 1.15rem;
+  margin: 0;
+  color: #4b5563;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1.5px solid #d1d5db;
+  background: #fff;
+  transition: 0.3s;
+  font-size: 0.875rem;
+  width: auto;
+  text-align: center;
+}
+
+.tabControl[data-active="true"] {
+  background-color: var(--customTheme);
+  border-color: var(--customTheme);
+  color: white;
+}
+
+.tabControl:hover {
+  border-color: #9ca3af;
+}
+
+@media (min-width: 640px) {
+  .tabControl {
+    font-size: 1rem;
+  }
+}
+
+.emptyState {
+  color: #6b7280;
+  font-size: 0.95rem;
+  padding: 1rem 0;
+}
+
+.heading {
+  font-size: 2rem;
+  line-height: 2.5rem;
+  font-weight: 900;
+  letter-spacing: 0.025em;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .heading {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+.menuCard {
+  margin: 5rem;
+}
