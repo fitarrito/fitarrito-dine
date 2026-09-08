@@ -147,7 +147,7 @@ const ChooseVariantCard: React.FC<ChooseVariantCardProps> = ({
 
   return (
     <section className={styles.wrapper}>
-      {item?.proteinVariants?.length > 0 && (
+      {(item?.proteinVariants?.length ?? 0) > 0 && (
         <section className={styles.proteinSection}>
           <h4 className={styles.chooseTitle}>Choose Protein:</h4>
 
