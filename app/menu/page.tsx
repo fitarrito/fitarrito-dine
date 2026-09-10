@@ -12,7 +12,7 @@ import { RootState, AppDispatch } from "@lib/store";
 import MenuItemDetails from "@/components/MenuItemDetails";
 import MenuCategoryNav, {
   DEFAULT_MENU_CATEGORY,
-  MENU_CATEGORIES,
+  DINE_IN_CATEGORIES,
 } from "@/components/MenuCategoryNav";
 
 type FoodCategory = {
@@ -22,8 +22,13 @@ type FoodCategory = {
 
 function MenuPageContent() {
   const searchParams = useSearchParams();
+  const sectionParam = searchParams.get("section");
   const categoryParam = searchParams.get("category") ?? DEFAULT_MENU_CATEGORY;
-  const activeMenuCategory = MENU_CATEGORIES.some((c) => c.id === categoryParam)
+  const activeSection =
+    sectionParam === "order-now" ? "order-now" : ("dine-in" as const);
+  const activeMenuCategory = DINE_IN_CATEGORIES.some(
+    (c) => c.id === categoryParam,
+  )
     ? categoryParam
     : DEFAULT_MENU_CATEGORY;
 
@@ -46,7 +51,9 @@ function MenuPageContent() {
   );
 
   const activeTab = selectedTab ?? foodCategories?.[0]?.name ?? "";
-  const showFoodMenu = activeMenuCategory === "mexican";
+  const showFoodMenu =
+    activeSection === "dine-in" && activeMenuCategory === "mexican";
+  const showComingSoon = activeSection === "order-now" || !showFoodMenu;
 
   const filteredMenuItems = useMemo(() => {
     if (!showFoodMenu || activeFoodCategoryId == null) return [];
@@ -68,7 +75,10 @@ function MenuPageContent() {
   if (menuLoading || categoryLoading) return <p>Loading...</p>;
 
   const activeLabel =
-    MENU_CATEGORIES.find((c) => c.id === activeMenuCategory)?.label ?? "Menu";
+    activeSection === "order-now"
+      ? "Order Now"
+      : (DINE_IN_CATEGORIES.find((c) => c.id === activeMenuCategory)?.label ??
+        "Menu");
 
   return (
     <div className={styles.menuContainer}>
@@ -78,7 +88,9 @@ function MenuPageContent() {
         </div>
       </div>
 
-      <MenuCategoryNav activeCategory={activeMenuCategory} />
+      {activeSection === "dine-in" ? (
+        <MenuCategoryNav activeCategory={activeMenuCategory} />
+      ) : null}
 
       {showFoodMenu ? (
         <>
@@ -107,13 +119,13 @@ function MenuPageContent() {
             </article>
           ))}
         </>
-      ) : (
+      ) : showComingSoon ? (
         <section className={styles.categorySection}>
           <p className={styles.emptyState}>
             {activeLabel} content coming soon.
           </p>
         </section>
-      )}
+      ) : null}
 
       {isDrawerOpen ? (
         <CartDrawer isOpen={isDrawerOpen} setIsOpen={setIsDrawerOpen} />

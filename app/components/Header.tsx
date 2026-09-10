@@ -1,17 +1,57 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import CartDrawer from "../components/CartDrawer";
 import Image from "next/image";
 import Link from "next/link";
 import textImage from "../../public/images/fitarrito.svg";
 import logo from "../../public/images/logo.svg";
-import { FaShoppingCart } from "react-icons/fa";
+import { FaShoppingCart, FaSignOutAlt } from "react-icons/fa";
 import { useAppSelector } from "@lib/hooks";
+import { supabase } from "@lib/supabase-browser";
 
 const Header: React.FC = () => {
   const navRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const totalCartItems = useAppSelector((state) => state.cart.totalCartItems);
+
+  useEffect(() => {
+    const syncAuthState = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setIsLoggedIn(Boolean(user));
+    };
+
+    void syncAuthState();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(Boolean(session?.user));
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      console.error("Logout error:", error);
+      setIsLoggingOut(false);
+      return;
+    }
+
+    window.location.href = "/subscription?step=account&plan=2-meals";
+  };
 
   return (
     // Header-Element
@@ -79,6 +119,17 @@ const Header: React.FC = () => {
               className="z-40 flex flex-row gap-3 items-center overflow-visible"
               style={{ overflow: "visible", minWidth: "fit-content" }}
             >
+              {isLoggedIn ? (
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className="px-3 py-2 bg-white border border-gray-200 rounded-3xl flex flex-row items-center justify-center gap-2 min-w-[2.75rem] hover:bg-gray-50"
+                  aria-label="Log out"
+                >
+                  <FaSignOutAlt className="text-customTheme text-lg" />
+                </button>
+              ) : null}
+
               <button
                 onClick={() => setIsOpen(true)}
                 className="px-3 py-2 bg-customTheme rounded-3xl flex flex-row items-center justify-between w-16"
@@ -93,6 +144,53 @@ const Header: React.FC = () => {
         </div>
       </div>
       {isOpen ? <CartDrawer isOpen={isOpen} setIsOpen={setIsOpen} /> : null}
+
+      {showLogoutConfirm ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4"
+          role="presentation"
+          onClick={() => {
+            if (!isLoggingOut) setShowLogoutConfirm(false);
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2
+              id="logout-dialog-title"
+              className="text-lg font-bold text-gray-900"
+            >
+              Are you sure you want to logout?
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              You will be signed out of your Google account on this device.
+            </p>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                disabled={isLoggingOut}
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-xl bg-customTheme px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                disabled={isLoggingOut}
+                onClick={() => void handleLogout()}
+              >
+                {isLoggingOut ? "Logging out..." : "Yes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 };

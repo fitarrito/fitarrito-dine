@@ -35,7 +35,9 @@ export default function RootLayout({
           {" "}
           <div className="flex flex-col">
             <Header />
-            <main className="flex m-10 pt-25">{children}</main>
+            <main className="flex flex-col w-full flex-1 m-4 sm:m-8 lg:m-10 pt-25">
+              {children}
+            </main>
           </div>
         </Providers>
       </body>

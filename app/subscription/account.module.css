@@ -1,0 +1,276 @@
+.accountStepperRow {
+  margin-bottom: 1.25rem;
+}
+
+.loginCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 32rem;
+  padding: 2rem 1.35rem 2.25rem;
+  border: 1px solid #ece7df;
+  border-radius: 20px;
+  background: #fff;
+  box-sizing: border-box;
+  box-shadow:
+    0 24px 50px rgba(15, 23, 42, 0.1),
+    0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.loginCardWelcome {
+  min-height: 38rem;
+  padding: 2.25rem 1.5rem 2rem;
+}
+
+.loginCardMain {
+  flex: 1;
+}
+
+.loginCardFooterBlock {
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.welcomeHeader {
+  margin-bottom: 1.75rem;
+}
+
+.welcomeLeafWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-bottom: 0.85rem;
+}
+
+.welcomeLeaf {
+  color: #166534;
+  font-size: 0.95rem;
+}
+
+.welcomeLeaf:last-child {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.welcomeTitle {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.45rem, 4.5vw, 1.75rem);
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.welcomeTitleAccent {
+  color: #166534;
+}
+
+.welcomeSubtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.authBtn {
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr) 0.85rem;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 3.35rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #fff;
+  color: #111827;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.authBtnIcon {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex-shrink: 0;
+}
+
+.authBtnIconGoogle {
+  color: #4285f4;
+  font-size: 1rem;
+}
+
+.authBtnIconPhone {
+  color: #166534;
+  font-size: 1.05rem;
+}
+
+.authBtnIconEmail {
+  color: #1e3a5f;
+  font-size: 0.95rem;
+}
+
+.authBtnLabel {
+  text-align: center;
+}
+
+.authBtnArrow {
+  justify-self: end;
+  font-size: 0.78rem;
+  color: #111827;
+}
+
+.loginDivider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0 1.25rem;
+  color: #9ca3af;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.loginDivider::before,
+.loginDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.termsText {
+  margin: 0 0 1rem;
+  font-size: 0.78rem;
+  color: #6b7280;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.termsLink {
+  color: #166534;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.securityNote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.72rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.securityNote svg {
+  color: #166534;
+}
+
+.loginCardTitle {
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.loginCardSubtitle {
+  margin: 0 0 1.15rem;
+  font-size: 0.88rem;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+.backToWelcomeBtn {
+  margin-bottom: 0.85rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.phoneRow {
+  display: grid;
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.phoneCode,
+.phoneInput,
+.signupInput {
+  min-height: 2.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.signupInput {
+  width: 100%;
+  margin-bottom: 0.85rem;
+}
+
+.phoneInput:focus,
+.phoneCode:focus,
+.signupInput:focus {
+  outline: 2px solid #166534;
+  outline-offset: 1px;
+  border-color: #166534;
+}
+
+.primaryActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.85rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--customTheme, #fc1e1e);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryActionBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (min-width: 640px) {
+  .loginCard {
+    max-width: 22rem;
+    min-height: 34rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.85rem 2.25rem;
+  }
+
+  .loginCardWelcome {
+    min-height: 42rem;
+    max-width: 23rem;
+    padding: 2.75rem 2rem 2.35rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .loginCardWelcome {
+    min-height: 44rem;
+    max-width: 24rem;
+  }
+}

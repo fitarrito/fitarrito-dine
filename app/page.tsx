@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import OrderTypeSelection from "./components/OrderTypeSelection";
 
 export default function Home() {
-  redirect("/menu?category=mexican");
+  return <OrderTypeSelection />;
 }
