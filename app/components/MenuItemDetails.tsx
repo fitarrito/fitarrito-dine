@@ -58,16 +58,6 @@ const DisplayTabContent: React.FC<{
       >
         {hasProteinVariants ? (
           <>
-            {/* <div className={styles.horizontalImageWrapper}>
-              <div className={styles.imageInner}>
-                <Image
-                  src={card?.imageUrl ?? "/fallback-image.jpg"}
-                  alt={card?.title ?? "Menu image"}
-                  fill
-                  className={styles.containImage}
-                />
-              </div>
-            </div> */}
             <div className={styles.horizontalImageWrapper}>
               <div className={styles.imageInner}>
                 <Image
@@ -114,7 +104,7 @@ const DisplayTabContent: React.FC<{
               />
 
               <div className={styles.mobileButtonWrap}>
-                <button className={styles.primaryButton}>Add to cart</button>
+                <button className={styles.primaryButton}>Add To cart</button>
               </div>
             </div>
           </>
