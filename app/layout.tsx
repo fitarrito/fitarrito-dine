@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fitarrito",
-  description: "Restaurant Ordering App",
+  title: "Fitarrito Dine-In",
+  description: "Order fresh Mexican and Pan Asian meals for dine-in.",
 };
 
 export default function RootLayout({
@@ -32,7 +32,6 @@ export default function RootLayout({
     >
       <body>
         <Providers>
-          {" "}
           <div className="flex flex-col">
             <Header />
             <main className="flex flex-col w-full flex-1 m-4 sm:m-8 lg:m-10 pt-25">
