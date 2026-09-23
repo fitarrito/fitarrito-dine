@@ -1,0 +1,153 @@
+.banner {
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  margin-bottom: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.75rem;
+  background: #fdf3f0;
+  border-bottom: 1px solid #f3ddd6;
+}
+
+.intro,
+.status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.clockIcon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--customTheme, #fc1e1e);
+  color: #fff;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.sunIcon {
+  color: #f59e0b;
+  font-size: 0.95rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.moonIcon {
+  color: #1e3a8a;
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.closedIcon {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--customTheme, #fc1e1e);
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.subtitle {
+  margin: 0.2rem 0 0;
+  color: #374151;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.statusTitle {
+  margin: 0;
+  color: #111827;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.statusMessage {
+  margin: 0.2rem 0 0;
+  color: #6b7280;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.statusMessage strong {
+  color: var(--customTheme, #fc1e1e);
+  font-weight: 800;
+}
+
+.status {
+  padding-left: 0.65rem;
+  border-left: 1px solid #ead5cf;
+}
+
+@media (min-width: 768px) {
+  .banner {
+    gap: 1.25rem;
+    padding: 1.15rem 1.5rem;
+  }
+
+  .clockIcon {
+    width: 2.35rem;
+    height: 2.35rem;
+    font-size: 1rem;
+  }
+
+  .title {
+    font-size: 1.1rem;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+  }
+
+  .statusTitle {
+    font-size: 0.95rem;
+  }
+
+  .statusMessage {
+    font-size: 0.82rem;
+  }
+
+  .status {
+    padding-left: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .title {
+    font-size: 1.35rem;
+  }
+
+  .subtitle {
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .subtitle {
+    display: none;
+  }
+
+  .banner {
+    grid-template-columns: 1fr;
+  }
+
+  .status {
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid #ead5cf;
+    padding-top: 0.65rem;
+  }
+}

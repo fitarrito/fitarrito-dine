@@ -1,188 +1,160 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
-import { menuItem, ProteinVariant } from "@/types/types";
+import { FaCheck, FaInfoCircle, FaShoppingCart, FaTag } from "react-icons/fa";
+import { addToCart } from "@lib/features/cartSlice";
+import { getCartSession } from "@lib/cartSession";
+import { useAppDispatch } from "@lib/hooks";
+import { useOrderWindow } from "@lib/useOrderWindow";
+import type { menuItem, ProteinVariant } from "@/types/types";
 import styles from "./SelectProtein.module.css";
 
-interface ChooseVariantCardProps {
-  item: menuItem | null;
-  onPriceChange?: (
-    price: number,
-    selectedProtein?: string,
-    size?: "regular" | "jumbo",
-  ) => void;
+type SelectProteinProps = {
+  item: menuItem;
+  onAddedToCart?: () => void;
+  simple?: boolean;
+};
+
+function formatRupee(amount: number) {
+  return `₹${Math.round(amount)}`;
 }
 
-const ChooseVariantCard: React.FC<ChooseVariantCardProps> = ({
+export default function SelectProtein({
   item,
-  onPriceChange,
-}) => {
-  const [variant, setVariant] = useState<"regular" | "jumbo">("regular");
+  onAddedToCart,
+  simple = false,
+}: SelectProteinProps) {
+  const dispatch = useAppDispatch();
+  const orderWindow = useOrderWindow();
 
-  const [selectedProtein, setSelectedProtein] = useState<string | null>(
-    item?.proteinVariants?.length ? item.proteinVariants[0].name : null,
+  const availableProteins = useMemo(
+    () =>
+      item.proteinVariants?.filter(
+        (protein) => protein.name.toLowerCase() !== "mutton",
+      ) ?? [],
+    [item.proteinVariants],
   );
 
-  const totalPrice = useMemo(() => {
-    const basePrice = parseFloat(String(item?.price || 0));
+  const [selectedProteinName, setSelectedProteinName] = useState<string>(
+    availableProteins[0]?.name ?? "",
+  );
 
-    if (item?.proteinVariants && selectedProtein) {
-      const protein = item.proteinVariants.find(
-        (p) => p.name === selectedProtein,
-      );
+  const basePrice = parseFloat(String(item.price || 0));
 
-      const sizeVariant = item?.title?.toLowerCase().includes("taco")
-        ? "regular"
-        : variant;
+  const selectedProtein = availableProteins.find(
+    (protein) => protein.name === selectedProteinName,
+  );
 
-      const proteinPrice = parseFloat(
-        protein?.nutrient[sizeVariant].price || "0",
-      );
+  const proteinAddon = parseFloat(String(selectedProtein?.price || 0));
+  const totalPrice = basePrice + proteinAddon;
 
-      return basePrice + proteinPrice;
-    }
+  const handleAddToCart = async () => {
+    if (orderWindow === "closed") return;
 
-    return basePrice;
-  }, [item, selectedProtein, variant]);
+    const session = getCartSession();
 
-  useEffect(() => {
-    if (onPriceChange) {
-      const sizeVariant = item?.title?.toLowerCase().includes("taco")
-        ? "regular"
-        : variant;
+    if (!selectedProteinName) return;
 
-      onPriceChange(totalPrice, selectedProtein || undefined, sizeVariant);
-    }
-  }, [totalPrice, selectedProtein, variant, item, onPriceChange]);
+    await dispatch(
+      addToCart({
+        sessionId: session.sessionId,
+        menuItemId: String(item.id),
+        selectedProtein: selectedProteinName,
+        quantity: 1,
+      }),
+    );
 
-  const hasSizeVariants = useMemo(() => {
-    if (item?.title?.toLowerCase().includes("taco")) return false;
+    onAddedToCart?.();
+  };
 
-    if (item?.proteinVariants?.length) {
-      return item.proteinVariants.some(
-        (protein) =>
-          protein.nutrient.regular.price !== protein.nutrient.jumbo.price,
-      );
-    }
+  const renderProteinCard = (protein: ProteinVariant) => {
+    const active = selectedProteinName === protein.name;
+    const addonPrice = parseFloat(String(protein.price || 0));
 
-    if (!item?.nutrient) return false;
-
-    return item.nutrient.regular?.price !== item.nutrient.jumbo?.price;
-  }, [item]);
-
-  const { vegProteins, nonVegProteins } = useMemo(() => {
-    if (!item?.proteinVariants) {
-      return { vegProteins: [], nonVegProteins: [] };
-    }
-
-    return {
-      vegProteins: item.proteinVariants.filter((p) => p.type === "veg"),
-      nonVegProteins: item.proteinVariants.filter((p) => p.type === "non-veg"),
-    };
-  }, [item]);
-
-  const renderProteinButtons = (
-    proteins: ProteinVariant[],
-    type: "veg" | "non-veg",
-  ) => {
-    if (!proteins.length) return null;
     return (
-      <section className={styles.proteinGroup}>
-        <header className={styles.proteinHeader}>
-          {proteins[0]?.imageUrl && (
-            <div className={styles.iconWrap}>
-              <Image
-                src={proteins[0].imageUrl}
-                alt={proteins[0].name}
-                fill
-                className={styles.iconImage}
-              />
-            </div>
-          )}
+      <button
+        key={protein.name}
+        type="button"
+        className={`${styles.proteinCard} ${active ? styles.proteinCardActive : ""}`}
+        onClick={() => setSelectedProteinName(protein.name)}
+        aria-pressed={active}
+      >
+        {active ? (
+          <span className={styles.checkBadge} aria-hidden>
+            <FaCheck />
+          </span>
+        ) : null}
 
-          <p className={styles.groupTitle}>
-            {type === "veg" ? "Vegetarian" : "Non-Vegetarian"}
-          </p>
-        </header>
+        {protein.imageUrl ? (
+          <span className={styles.proteinIconWrap}>
+            <Image
+              src={protein.imageUrl}
+              alt=""
+              width={28}
+              height={28}
+              className={styles.proteinIcon}
+            />
+          </span>
+        ) : null}
 
-        <div className={styles.buttonGroup}>
-          {proteins.map((protein) => {
-            const active = selectedProtein === protein.name;
-
-            return (
-              <button
-                key={protein.name}
-                type="button"
-                onClick={() => setSelectedProtein(protein.name)}
-                className={`${styles.proteinButton} ${
-                  active ? styles.activeProtein : ""
-                }`}
-              >
-                {protein.imageUrl ? (
-                  <span className={styles.iconWrap}>
-                    <Image
-                      src={protein.imageUrl}
-                      alt={protein.name}
-                      fill
-                      className={styles.iconImage}
-                    />
-                  </span>
-                ) : (
-                  <span
-                    className={`${styles.dot} ${
-                      protein.type === "veg" ? styles.vegDot : styles.nonVegDot
-                    }`}
-                  />
-                )}
-
-                {protein.name}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+        <span className={styles.proteinName}>{protein.name}</span>
+        <span className={styles.proteinPrice}>+ {formatRupee(addonPrice)}</span>
+      </button>
     );
   };
 
+  const selectionLabel = selectedProteinName
+    ? `${item.title} + ${selectedProteinName}`
+    : item.title;
+
   return (
     <section className={styles.wrapper}>
-      {(item?.proteinVariants?.length ?? 0) > 0 && (
-        <section className={styles.proteinSection}>
-          <h4 className={styles.chooseTitle}>Choose Protein:</h4>
+      <div className={styles.basePriceBox}>
+        <FaTag className={styles.basePriceIcon} aria-hidden />
+        <div>
+          <p className={styles.basePriceLabel}>Base Price</p>
+          <p className={styles.basePriceValue}>{formatRupee(basePrice)}</p>
+        </div>
+      </div>
 
-          <div className={styles.proteinLayout}>
-            {renderProteinButtons(vegProteins, "veg")}
-            {renderProteinButtons(nonVegProteins, "non-veg")}
+      {!simple && availableProteins.length > 0 ? (
+        <section className={styles.proteinSection}>
+          <div className={styles.proteinHeader}>
+            <h3 className={styles.proteinTitle}>Choose Your Protein</h3>
+            <button type="button" className={styles.includedLink}>
+              <FaInfoCircle aria-hidden />
+              What&apos;s included?
+            </button>
+          </div>
+
+          <div className={styles.proteinGrid}>
+            {availableProteins.map(renderProteinCard)}
           </div>
         </section>
-      )}
+      ) : null}
 
-      <p className={styles.price}>Rs.{totalPrice}</p>
+      <div className={styles.summaryBar}>
+        <div className={styles.summaryText}>
+          <p className={styles.summaryLabel}>Your Selection</p>
+          <p className={styles.summaryValue}>{selectionLabel}</p>
+        </div>
 
-      {hasSizeVariants && (
-        <section className={styles.sizeSection}>
-          <label className={styles.sizeLabel}>
-            <input
-              type="radio"
-              checked={variant === "regular"}
-              onChange={() => setVariant("regular")}
-            />
-            <span>Regular</span>
-          </label>
+        <div className={styles.summaryPricing}>
+          <p className={styles.totalLabel}>Total Price</p>
+          <p className={styles.totalValue}>{formatRupee(totalPrice)}</p>
+        </div>
 
-          <label className={styles.sizeLabel}>
-            <input
-              type="radio"
-              checked={variant === "jumbo"}
-              onChange={() => setVariant("jumbo")}
-            />
-            <span>Jumbo</span>
-          </label>
-        </section>
-      )}
+        <button
+          type="button"
+          className={styles.addToCartButton}
+          onClick={() => void handleAddToCart()}
+          disabled={orderWindow === "closed"}
+        >
+          {orderWindow === "closed" ? null : <FaShoppingCart aria-hidden />}
+          {orderWindow === "closed" ? "Ordering Closed" : "Add to Cart"}
+        </button>
+      </div>
     </section>
   );
-};
-
-export default ChooseVariantCard;
+}

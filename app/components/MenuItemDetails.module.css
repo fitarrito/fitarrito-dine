@@ -1,173 +1,133 @@
-/* DisplayTabContent.module.css */
-
 .cardContainer {
-    width: 100%;
-  }
-  
-  .fullWidthCard {
-    grid-column: span 2;
-    max-width: 75vw;
-    margin: 0 auto;
-  }
-  
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+@media (min-width: 900px) {
   .card {
-    background: #e5e7eb;
-    border-radius: 12px;
-    overflow: hidden;
-    width: 100%;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
   }
-  
-  .horizontalCard {
-    display: flex;
-    flex-direction: column;
+}
+
+.visualColumn {
+  flex: 1;
+  padding: 1.25rem;
+  background: #fafafa;
+}
+
+@media (min-width: 900px) {
+  .visualColumn {
+    max-width: 46%;
+    padding: 1.75rem;
   }
-  
-  @media (min-width: 640px) {
-    .horizontalCard {
-      flex-direction: row;
-      align-items: stretch;
-    }
+}
+
+.imageFrame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+.productImage {
+  object-fit: cover;
+}
+
+.imageTagline {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  margin: 0;
+  color: #fff;
+  font-family: "Brush Script MT", "Segoe Script", cursive;
+  font-size: clamp(1.35rem, 2.5vw, 2rem);
+  line-height: 1.1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.featureList {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .featureList {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  
-  .imageWrapper {
-    position: relative;
-    height: 8rem;
-    width: 100%;
-    overflow: hidden;
+}
+
+.featureItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.featureIconGreen {
+  font-size: 1.1rem;
+  color: #16a34a;
+}
+
+.featureIconOrange {
+  font-size: 1.1rem;
+  color: #ea580c;
+}
+
+.featureIconRed {
+  font-size: 1.1rem;
+  color: #dc2626;
+}
+
+.detailsColumn {
+  flex: 1;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 900px) {
+  .detailsColumn {
+    padding: 1.75rem 1.75rem 1.5rem;
   }
-  
-  @media (min-width: 640px) {
-    .imageWrapper {
-      height: 14rem;
-    }
-  }
-  
-  @media (min-width: 1280px) {
-    .imageWrapper {
-      height: 16rem;
-    }
-  }
-  
-  .horizontalImageWrapper {
-    position: relative;
-    width: 100%;
-    min-height: 320px;
-    background: #e5e7eb;
-    flex-shrink: 0;
-    padding: 1rem;
-  }
-  
-  @media (min-width: 640px) {
-    .horizontalImageWrapper {
-      width: 55%;
-      min-height: 480px;
-      padding: 1.5rem;
-    }
-  }
-  
-  .imageInner {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-  .imageInner:hover .containImage {
-    opacity: 0.6; /* adjust */
-  }
-  
-  .coverImage {
-    object-fit: cover;
-    border-radius: 12px 12px 0 0;
-  }
-  
-  .containImage {
-    object-fit: contain;
-  }
-  
-  .cardContent {
-    width: 100%;
-    padding: 1rem;
-    background: #f3f4f6;
-    color: #111827;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    flex: 1;
-  }
-  
-  @media (min-width: 640px) {
-    .cardContent {
-      width: 45%;
-      padding: 1.5rem;
-    }
-  }
-  
-  .cardTitle {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #ef4444;
-    padding-bottom: 1.25rem;
-  }
-  
-  @media (min-width: 640px) {
-    .cardTitle {
-      font-size: 1.5rem;
-    }
-  }
-  
-  .mobileButtonWrap {
-    display: flex;
-    align-items: center;
-    margin-top: 1rem;
-  }
-  
-  @media (min-width: 640px) {
-    .mobileButtonWrap {
-      display: none;
-    }
-  }
-  .imageInner {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-  
-  .addToCartOverlay {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 200ms ease, transform 200ms ease;
-    pointer-events: none;
-  }
-  
-  .imageInner:hover .addToCartOverlay {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  
-  .addToCartButton {
-    pointer-events: auto;
-    padding: 0.5rem 0.9rem;
-    background: #ef4444;
-    color: #fff;
-    border: none;
-    font-weight: 500;
-    cursor: pointer;
-  }
-  .primaryButton {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    background: #ef4444;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: 0.3s ease;
-  }
-  
-  .primaryButton:hover {
-    opacity: 0.9;
-  }
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 800;
+  color: var(--customTheme);
+  line-height: 1.1;
+}
+
+.description {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 36rem;
+}

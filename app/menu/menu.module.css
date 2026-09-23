@@ -15,8 +15,14 @@
 }
 
 .pageHeading {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   text-align: center;
+}
+
+.menuNavBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .categorySection {
@@ -68,6 +74,31 @@
   padding: 1rem 0;
 }
 
+.loadingState {
+  color: #4b5563;
+  font-size: 0.95rem;
+  padding: 1rem 0;
+}
+
+.errorState {
+  color: #b91c1c;
+  font-size: 0.95rem;
+  padding: 1rem 0;
+  text-align: center;
+}
+
+.retryButton {
+  display: block;
+  margin: 0.75rem auto 0;
+  padding: 0.65rem 1.25rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--customTheme);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .heading {
   font-size: 2rem;
   line-height: 2.5rem;
@@ -84,5 +115,7 @@
 }
 
 .menuCard {
-  margin: 5rem;
+  margin: 1.5rem auto;
+  max-width: 1120px;
+  padding: 0 1rem;
 }

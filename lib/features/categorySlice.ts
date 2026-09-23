@@ -1,33 +1,64 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { fetchJson } from "@lib/apiFetch";
+import type { MenuCuisineSlug } from "@lib/menuCuisine";
 
-export const fetchCategory = createAsyncThunk('category/fetchCategory', async () => {
-  const res = await fetch('/api/category');
-  const data = await res.json();
-  return data;
-});
+type FoodCategory = {
+  id: number;
+  name: string;
+};
 
-const menuSlice = createSlice({
-  name: 'category',
+type FetchCategoryArgs = {
+  cuisine: MenuCuisineSlug;
+};
+
+export const fetchCategory = createAsyncThunk(
+  "category/fetchCategory",
+  async ({ cuisine }: FetchCategoryArgs, { rejectWithValue }) => {
+    try {
+      const data = await fetchJson<FoodCategory[]>(
+        `/api/category?cuisine=${cuisine}`,
+      );
+
+      if (!Array.isArray(data)) {
+        return rejectWithValue("Invalid category response");
+      }
+
+      return data;
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to fetch categories",
+      );
+    }
+  },
+);
+
+const categorySlice = createSlice({
+  name: "category",
   initialState: {
-    items: [],
+    items: [] as FoodCategory[],
     loading: false,
     error: null as string | null,
+    activeCuisine: null as MenuCuisineSlug | null,
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
       .addCase(fetchCategory.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchCategory.fulfilled, (state, action) => {
         state.loading = false;
         state.items = action.payload;
+        state.activeCuisine = action.meta.arg.cuisine;
       })
-      .addCase(fetchCategory.rejected, (state) => {
+      .addCase(fetchCategory.rejected, (state, action) => {
         state.loading = false;
-        state.error = 'Failed to fetch menu';
+        state.error =
+          (action.payload as string | undefined) ??
+          "Failed to fetch categories";
       });
   },
 });
 
-export default menuSlice.reducer;
+export default categorySlice.reducer;

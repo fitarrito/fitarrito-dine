@@ -4,6 +4,7 @@
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
   margin-bottom: 1.5rem;
+  margin-top: 0;
   border-bottom: 1px solid #e5e7eb;
   background: #fff;
 }

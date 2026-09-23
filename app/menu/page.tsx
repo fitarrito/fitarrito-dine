@@ -14,6 +14,9 @@ import MenuCategoryNav, {
   DEFAULT_MENU_CATEGORY,
   DINE_IN_CATEGORIES,
 } from "@/components/MenuCategoryNav";
+import OnDemandOrderingBanner from "@/components/OnDemandOrderingBanner";
+import PanAsianMenu from "@/components/PanAsianMenu";
+import { cuisineSlugFromNavCategory } from "@lib/menuCuisine";
 
 type FoodCategory = {
   id: number;
@@ -31,6 +34,7 @@ function MenuPageContent() {
   )
     ? categoryParam
     : DEFAULT_MENU_CATEGORY;
+  const activeCuisine = cuisineSlugFromNavCategory(activeMenuCategory);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState<string | null>(null);
@@ -38,29 +42,39 @@ function MenuPageContent() {
     number | null
   >(null);
 
-  const { items: foodCategories, loading: categoryLoading } = useSelector(
+  const { items: foodCategories, loading: categoryLoading, error: categoryError } = useSelector(
     (state: RootState) => state.category,
-  ) as { items: FoodCategory[]; loading: boolean };
+  ) as { items: FoodCategory[]; loading: boolean; error: string | null };
 
   const activeFoodCategoryId: number | null =
     selectedFoodCategoryId ?? foodCategories?.[0]?.id ?? null;
 
   const dispatch = useDispatch<AppDispatch>();
-  const { items: menuItems, loading: menuLoading } = useSelector(
-    (state: RootState) => state.menu,
-  );
+  const {
+    items: menuItems,
+    loading: menuLoading,
+    error: menuError,
+  } = useSelector((state: RootState) => state.menu);
 
   const activeTab = selectedTab ?? foodCategories?.[0]?.name ?? "";
-  const showFoodMenu =
+  const showMexicanMenu =
     activeSection === "dine-in" && activeMenuCategory === "mexican";
-  const showComingSoon = activeSection === "order-now" || !showFoodMenu;
+  const showPanAsianMenu =
+    activeSection === "dine-in" && activeMenuCategory === "pan-asian";
+  const showComingSoon =
+    activeSection === "order-now" ||
+    (activeSection === "dine-in" &&
+      activeMenuCategory !== "mexican" &&
+      activeMenuCategory !== "pan-asian");
+  const showOnDemandBanner = activeSection === "dine-in";
+  const needsMenuApiData = Boolean(activeCuisine);
 
   const filteredMenuItems = useMemo(() => {
-    if (!showFoodMenu || activeFoodCategoryId == null) return [];
+    if (!showMexicanMenu || activeFoodCategoryId == null) return [];
     return menuItems.filter(
       (m: menuItem) => m.categoryId === activeFoodCategoryId,
     );
-  }, [menuItems, activeFoodCategoryId, showFoodMenu]);
+  }, [menuItems, activeFoodCategoryId, showMexicanMenu]);
 
   const handleTabChange = (item: FoodCategory) => {
     setSelectedTab(item.name);
@@ -68,11 +82,27 @@ function MenuPageContent() {
   };
 
   useEffect(() => {
-    dispatch(fetchMenu());
-    dispatch(fetchCategory());
-  }, [dispatch]);
+    setSelectedTab(null);
+    setSelectedFoodCategoryId(null);
+  }, [activeCuisine]);
 
-  if (menuLoading || categoryLoading) return <p>Loading...</p>;
+  useEffect(() => {
+    if (!activeCuisine) return;
+
+    dispatch(fetchMenu({ cuisine: activeCuisine }));
+    dispatch(fetchCategory({ cuisine: activeCuisine }));
+  }, [dispatch, activeCuisine]);
+
+  const loadError = menuError ?? categoryError;
+  const isLoadingMenuData =
+    needsMenuApiData && (menuLoading || categoryLoading);
+
+  const handleRetry = () => {
+    if (!activeCuisine) return;
+
+    dispatch(fetchMenu({ cuisine: activeCuisine }));
+    dispatch(fetchCategory({ cuisine: activeCuisine }));
+  };
 
   const activeLabel =
     activeSection === "order-now"
@@ -80,19 +110,37 @@ function MenuPageContent() {
       : (DINE_IN_CATEGORIES.find((c) => c.id === activeMenuCategory)?.label ??
         "Menu");
 
-  return (
-    <div className={styles.menuContainer}>
-      <div className={styles.pageHeading}>
-        <div className="sub-heading">
-          Checkout Our <span className="badge-skew">Menu</span>
-        </div>
-      </div>
+  const renderMenuContent = () => {
+    if (isLoadingMenuData) {
+      return <p className={styles.loadingState}>Loading...</p>;
+    }
 
-      {activeSection === "dine-in" ? (
-        <MenuCategoryNav activeCategory={activeMenuCategory} />
-      ) : null}
+    if (loadError && needsMenuApiData) {
+      return (
+        <section className={styles.categorySection}>
+          <p className={styles.errorState}>Unable to load menu. {loadError}</p>
+          <button
+            type="button"
+            className={styles.retryButton}
+            onClick={handleRetry}
+          >
+            Try again
+          </button>
+        </section>
+      );
+    }
 
-      {showFoodMenu ? (
+    if (showPanAsianMenu) {
+      return (
+        <PanAsianMenu
+          items={menuItems}
+          onAddedToCart={() => setIsDrawerOpen(true)}
+        />
+      );
+    }
+
+    if (showMexicanMenu) {
+      return (
         <>
           <section className={styles.categorySection}>
             <div className={styles.tabsControl}>
@@ -113,19 +161,44 @@ function MenuPageContent() {
             <article key={`${card.title}-${index}`} className={styles.menuCard}>
               <MenuItemDetails
                 card={card}
-                isDrawerOpen={() => setIsDrawerOpen(true)}
+                onAddedToCart={() => setIsDrawerOpen(true)}
                 index={index}
               />
             </article>
           ))}
         </>
-      ) : showComingSoon ? (
+      );
+    }
+
+    if (showComingSoon) {
+      return (
         <section className={styles.categorySection}>
           <p className={styles.emptyState}>
             {activeLabel} content coming soon.
           </p>
         </section>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className={styles.menuContainer}>
+      <div className={styles.pageHeading}>
+        <div className="sub-heading">
+          Checkout Our <span className="badge-skew">Menu</span>
+        </div>
+      </div>
+
+      {activeSection === "dine-in" ? (
+        <div className={styles.menuNavBlock}>
+          {showOnDemandBanner ? <OnDemandOrderingBanner /> : null}
+          <MenuCategoryNav activeCategory={activeMenuCategory} />
+        </div>
       ) : null}
+
+      {renderMenuContent()}
 
       {isDrawerOpen ? (
         <CartDrawer isOpen={isDrawerOpen} setIsOpen={setIsDrawerOpen} />

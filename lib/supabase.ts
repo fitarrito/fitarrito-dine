@@ -1,6 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseServerClient } from "@lib/getSupabaseServer";
 
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+export const supabase = new Proxy({} as ReturnType<typeof getSupabaseServerClient>, {
+  get(_target, property) {
+    const client = getSupabaseServerClient();
+    const value = Reflect.get(client, property, client);
+
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});

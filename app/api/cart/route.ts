@@ -1,168 +1,360 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@lib/supabase";
+import { withTimeout } from "@lib/getSupabaseServer";
+import {
+  getSupabaseAdminClient,
+  getSupabaseAdminConfig,
+} from "@lib/getSupabaseAdmin";
+import {
+  enrichCartItem,
+  enrichCartItems,
+  type CartItemRecord,
+} from "@lib/cartItemsServer";
+import type { menuItem, ProteinVariant } from "@/types/types";
 
-export async function POST(req: Request) {
+export const dynamic = "force-dynamic";
+
+async function fetchMenuItemMap(menuItemIds: Array<string | number>) {
+  if (!menuItemIds.length) {
+    return new Map<string, menuItem>();
+  }
+
+  const supabaseAdmin = getSupabaseAdminClient();
+  const { data, error } = await withTimeout(
+    supabaseAdmin.from("MenuItem").select("*").in("id", menuItemIds),
+    10_000,
+    "Menu item lookup",
+  );
+
+  if (error) throw error;
+
+  return new Map(
+    (data ?? []).map((item) => [String(item.id), item as menuItem]),
+  );
+}
+
+async function loadCartRows(sessionId: string) {
+  const supabaseAdmin = getSupabaseAdminClient();
+  const { data, error } = await withTimeout(
+    supabaseAdmin.from("CartItems").select("*").eq("session_id", sessionId),
+    10_000,
+    "Cart fetch",
+  );
+
+  if (error) throw error;
+
+  return (data ?? []) as CartItemRecord[];
+}
+
+async function loadEnrichedCart(sessionId: string) {
+  const rows = await loadCartRows(sessionId);
+  const menuItemIds = [...new Set(rows.map((row) => row.menu_item_id))];
+  const menuItemMap = await fetchMenuItemMap(menuItemIds);
+
+  return enrichCartItems(rows, [...menuItemMap.values()]);
+}
+
+export async function POST(request: Request) {
+  if (!getSupabaseAdminConfig()) {
+    return NextResponse.json(
+      {
+        error:
+          "Supabase admin is not configured. Add SUPABASE_SERVICE_ROLE_KEY.",
+      },
+      { status: 503 },
+    );
+  }
+
   try {
-    const body = await req.json();
+    const body = await request.json();
+    const sessionId = body.sessionId ?? body.session_id;
+    const menuItemId = body.menuItemId ?? body.menu_item_id;
+    const selectedProtein = body.selectedProtein ?? body.selected_protein;
+    const quantity = body.quantity ?? 1;
 
-    const {
-      table_id,
-      session_id,
-      menu_item_id,
-      title,
-      image_url,
-      selected_protein,
-      selected_size,
-      quantity,
-      price,
-    } = body;
-
-    // ✅ Basic validation
-    if (!table_id || !title || !price) {
+    if (!sessionId) {
       return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
+        { error: "Session ID is required." },
+        { status: 400 },
       );
     }
 
-    // ✅ Check if item already exists (avoid duplicates)
-    const { data: existingItem } = await supabase
-      .from("CartItems")
-      .select("*")
-      .eq("table_id", table_id)
-      .eq("session_id", session_id)
-      .eq("menu_item_id", menu_item_id)
-      .eq("selected_protein", selected_protein)
-      .eq("selected_size", selected_size)
-      .single();
-
-    if (existingItem) {
-      // 🔁 Update quantity
-      const { data, error } = await supabase
-        .from("CartItems")
-        .update({
-          quantity: existingItem.quantity + (quantity || 1),
-        })
-        .eq("id", existingItem.id)
-        .select();
-
-      if (error) throw error;
-
-      return NextResponse.json(data);
+    if (!menuItemId) {
+      return NextResponse.json(
+        { error: "Menu item is required." },
+        { status: 400 },
+      );
     }
 
-    // ➕ Insert new item
-    const { data, error } = await supabase
-      .from("CartItems")
-      .insert([
+    if (!selectedProtein) {
+      return NextResponse.json(
+        { error: "Please select a protein." },
+        { status: 400 },
+      );
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return NextResponse.json({ error: "Invalid quantity." }, { status: 400 });
+    }
+
+    const supabaseAdmin = getSupabaseAdminClient();
+    const { data: menuItemRow, error: menuError } = await withTimeout(
+      supabaseAdmin
+        .from("MenuItem")
+        .select(
+          "id, title, price, imageUrl, proteinVariants, order_type, cuisine",
+        )
+        .eq("id", menuItemId)
+        .single(),
+      10_000,
+      "Menu item fetch",
+    );
+
+    if (menuError || !menuItemRow) {
+      console.error("Menu item error:", menuError);
+
+      return NextResponse.json(
+        { error: "Menu item not found." },
+        { status: 404 },
+      );
+    }
+
+    if (menuItemRow.order_type !== "on_demand") {
+      return NextResponse.json(
+        { error: "This item is not available for on-demand ordering." },
+        { status: 400 },
+      );
+    }
+
+    const proteinVariants = Array.isArray(menuItemRow.proteinVariants)
+      ? (menuItemRow.proteinVariants as ProteinVariant[])
+      : [];
+
+    const protein = proteinVariants.find(
+      (item) =>
+        item.name === selectedProtein &&
+        item.name.toLowerCase() !== "mutton",
+    );
+
+    if (!protein) {
+      return NextResponse.json(
         {
-          table_id,
-          session_id,
-          menu_item_id,
-          title,
-          image_url,
-          selected_protein,
-          selected_size,
-          quantity: quantity || 1,
-          price,
+          error: `Protein "${selectedProtein}" is not available for this item.`,
         },
-      ])
-      .select();
+        { status: 400 },
+      );
+    }
 
-    if (error) throw error;
+    const basePrice = Number(menuItemRow.price);
+    const proteinPrice = Number(protein.price ?? 0);
+    const unitPrice = basePrice + proteinPrice;
 
-    return NextResponse.json(data);
+    const { data: existingItem, error: existingError } = await supabaseAdmin
+      .from("CartItems")
+      .select("id, quantity")
+      .eq("session_id", sessionId)
+      .eq("menu_item_id", String(menuItemRow.id))
+      .eq("selected_protein", selectedProtein)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("Existing cart lookup error:", existingError);
+
+      return NextResponse.json(
+        { error: "Unable to check cart." },
+        { status: 500 },
+      );
+    }
+
+    if (existingItem) {
+      const newQuantity = existingItem.quantity + quantity;
+
+      const { data: updatedItem, error: updateError } = await supabaseAdmin
+        .from("CartItems")
+        .update({
+          quantity: newQuantity,
+          title: menuItemRow.title,
+          image_url: menuItemRow.imageUrl,
+          base_price: basePrice,
+          protein_price: proteinPrice,
+          price: unitPrice,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingItem.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("Cart update error:", updateError);
+
+        return NextResponse.json(
+          { error: "Unable to update cart." },
+          { status: 500 },
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Cart updated.",
+        item: enrichCartItem(
+          updatedItem as CartItemRecord,
+          menuItemRow as menuItem,
+        ),
+      });
+    }
+
+    const { data: cartItem, error: insertError } = await supabaseAdmin
+      .from("CartItems")
+      .insert({
+        session_id: sessionId,
+        menu_item_id: String(menuItemRow.id),
+        title: menuItemRow.title,
+        image_url: menuItemRow.imageUrl,
+        selected_protein: selectedProtein,
+        quantity,
+        base_price: basePrice,
+        protein_price: proteinPrice,
+        price: unitPrice,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Cart insert error:", insertError);
+
+      return NextResponse.json(
+        { error: "Unable to add item to cart." },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Added to cart.",
+      item: enrichCartItem(cartItem as CartItemRecord, menuItemRow as menuItem),
+    });
   } catch (error) {
+    console.error("Add to cart error:", error);
+
     return NextResponse.json(
-      { error: "Failed to add to cart" },
-      { status: 500 }
+      { error: "Something went wrong." },
+      { status: 500 },
     );
   }
 }
+
 export async function PATCH(req: Request) {
-    try {
-      const body = await req.json();
-  
-      const {
-        id,
-        quantity,
-      } = body;
-  
-      if (!id || quantity < 1) {
-        return NextResponse.json(
-          { error: "Invalid payload" },
-          { status: 400 }
-        );
-      }
-  
-      const { data, error } = await supabase
-        .from("CartItems")
-        .update({
-          quantity,
-        })
-        .eq("id", id)
-        .select()
-        .single();
-  
-      if (error) throw error;
-  
-      return NextResponse.json(data);
-    } catch (error) {
-      return NextResponse.json(
-        { error: "Failed to update cart item" },
-        { status: 500 }
-      );
-    }
+  if (!getSupabaseAdminConfig()) {
+    return NextResponse.json(
+      { error: "Supabase admin is not configured." },
+      { status: 503 },
+    );
   }
-export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-  
-    const table_id = searchParams.get("table_id");
-    const session_id = searchParams.get("session_id");
-  
-    const { data, error } = await supabase
+
+  try {
+    const body = await req.json();
+    const { id, quantity } = body;
+
+    if (!id || quantity < 1) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    const supabaseAdmin = getSupabaseAdminClient();
+    const { data: cartRow, error: cartError } = await supabaseAdmin
       .from("CartItems")
+      .update({
+        quantity,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (cartError || !cartRow) throw cartError;
+
+    const { data: menuItemRow } = await supabaseAdmin
+      .from("MenuItem")
       .select("*")
-      .eq("table_id", table_id)
-      .eq("session_id", session_id);
-  
-    if (error) {
+      .eq("id", cartRow.menu_item_id)
+      .maybeSingle();
+
+    return NextResponse.json(
+      enrichCartItem(
+        cartRow as CartItemRecord,
+        (menuItemRow as menuItem | null) ?? null,
+      ),
+    );
+  } catch (error) {
+    console.error("PATCH /api/cart failed:", error);
+
+    return NextResponse.json(
+      { error: "Failed to update cart item" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(req: Request) {
+  if (!getSupabaseAdminConfig()) {
+    return NextResponse.json(
+      { error: "Supabase admin is not configured." },
+      { status: 503 },
+    );
+  }
+
+  const { searchParams } = new URL(req.url);
+  const session_id = searchParams.get("session_id") ?? searchParams.get("sessionId");
+
+  if (!session_id) {
+    return NextResponse.json(
+      { error: "session_id is required" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const cartItems = await loadEnrichedCart(session_id);
+    return NextResponse.json(cartItems);
+  } catch (error) {
+    console.error("GET /api/cart failed:", error);
+
+    return NextResponse.json(
+      { error: "Failed to fetch cart" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  if (!getSupabaseAdminConfig()) {
+    return NextResponse.json(
+      { error: "Supabase admin is not configured." },
+      { status: 503 },
+    );
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
       return NextResponse.json(
-        { error: "Failed to fetch cart" },
-        { status: 500 }
+        { error: "Cart item id required" },
+        { status: 400 },
       );
     }
-  
-    return NextResponse.json(data);
+
+    const supabaseAdmin = getSupabaseAdminClient();
+    const { error } = await supabaseAdmin.from("CartItems").delete().eq("id", id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true, id });
+  } catch (error) {
+    console.error("DELETE /api/cart failed:", error);
+
+    return NextResponse.json(
+      { error: "Failed to delete cart item" },
+      { status: 500 },
+    );
   }
-  export async function DELETE(req: Request) {
-    try {
-      const { searchParams } = new URL(req.url);
-  
-      const id = searchParams.get("id");
-  
-      if (!id) {
-        return NextResponse.json(
-          { error: "Cart item id required" },
-          { status: 400 }
-        );
-      }
-  
-      const { error } = await supabase
-        .from("CartItems")
-        .delete()
-        .eq("id", id);
-  
-      if (error) throw error;
-  
-      return NextResponse.json({
-        success: true,
-      });
-    } catch (error) {
-  
-      return NextResponse.json(
-        { error: "Failed to delete cart item" },
-        { status: 500 }
-      );
-    }
-  }
+}

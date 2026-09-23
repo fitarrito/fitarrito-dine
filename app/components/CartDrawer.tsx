@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { IoCloseSharp, IoTrash } from "react-icons/io5";
-// import PlaceOrderForm, {
-//   OrderConfirmationWrapper,
-// } from "@/components/PlaceOrderForm";
 import cartEmpty from "../../public/images/CartEmpty.svg";
 import { useAppSelector, useAppDispatch } from "@lib/hooks";
 import {
@@ -12,11 +10,11 @@ import {
   updateCartQuantity,
   removeCartItem,
 } from "@lib/features/cartSlice";
+import { getCartSession } from "@lib/cartSession";
 import Image from "next/image";
 import Button from "./ui/Button";
 import styles from "./Drawer.module.css";
 import clsx from "clsx";
-import { it } from "node:test";
 
 interface DrawerProps {
   isOpen: boolean;
@@ -24,20 +22,17 @@ interface DrawerProps {
 }
 
 const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-
+  const router = useRouter();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const totalAmt = useAppSelector((state) => state.cart.totalAmt);
   const dispatch = useAppDispatch();
+  const cartSession = getCartSession();
+
   useEffect(() => {
-    dispatch(
-      fetchCart({
-        table_id: "table-1",
-        session_id: "session-1",
-      }),
-    );
-  }, [dispatch]);
+    if (isOpen) {
+      dispatch(fetchCart(getCartSession()));
+    }
+  }, [dispatch, isOpen]);
   useEffect(() => {
     if (isOpen) {
       document.body.classList.add("overflow-hidden");
@@ -108,7 +103,9 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
                         />
                       </div>
                       <p className={styles.itemTitle}>{displayTitle}</p>
-                      <span className={styles.itemPrice}>₹{item.price}</span>
+                      <span className={styles.itemPrice}>
+                        ₹{item.price * item.quantity}
+                      </span>
                     </div>
 
                     <div className={styles.quantityWrapper}>
@@ -120,6 +117,7 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
                               updateCartQuantity({
                                 id: item.id!,
                                 quantity: item.quantity - 1,
+                                session: cartSession,
                               }),
                             );
                           }
@@ -139,6 +137,7 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
                             updateCartQuantity({
                               id: item.id!,
                               quantity: item.quantity + 1,
+                              session: cartSession,
                             }),
                           )
                         }
@@ -149,7 +148,14 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
 
                     <button
                       className={styles.deleteButton}
-                      onClick={() => dispatch(removeCartItem(item.id!))}
+                      onClick={() =>
+                        dispatch(
+                          removeCartItem({
+                            id: item.id!,
+                            session: cartSession,
+                          }),
+                        )
+                      }
                     >
                       <IoTrash />
                     </button>
@@ -167,23 +173,15 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
             <Button
               variant="primary"
               className={styles.buttonWidth}
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setIsOpen(false);
+                router.push("/checkout");
+              }}
             >
               Continue
             </Button>
           </div>
         )}
-        {/* 
-        <PlaceOrderForm
-          isOpen={isModalOpen}
-          setIsModalOpen={setIsModalOpen}
-          onOrderSubmit={() => setShowConfirmationModal(true)}
-        />
-
-        <OrderConfirmationWrapper
-          showConfirmationModal={showConfirmationModal}
-          setShowConfirmationModal={setShowConfirmationModal}
-        /> */}
       </div>
     </>
   );
