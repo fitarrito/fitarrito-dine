@@ -188,8 +188,16 @@
 }
 
 .addButton:disabled {
-  opacity: 0.6;
   cursor: not-allowed;
+}
+
+.addButtonClosed {
+  background: #6b7280;
+  opacity: 1;
+}
+
+.addButtonClosed:hover {
+  opacity: 1;
 }
 
 .comingSoon {

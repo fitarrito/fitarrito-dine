@@ -2,7 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 import {
-  IGNORE_ORDER_CUTOFF_FOR_TESTING,
   getOrderWindow,
   type OrderWindow,
 } from "./orderCutoff";
@@ -18,7 +17,7 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getServerSnapshot(): OrderWindow {
-  return IGNORE_ORDER_CUTOFF_FOR_TESTING ? "dinner" : "closed";
+  return getOrderWindow();
 }
 
 export function useOrderWindow() {

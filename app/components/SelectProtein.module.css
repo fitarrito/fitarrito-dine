@@ -225,8 +225,16 @@
 }
 
 .addToCartButton:disabled {
-  opacity: 0.6;
   cursor: not-allowed;
+}
+
+.addToCartButtonClosed {
+  background: #6b7280;
+  opacity: 1;
+}
+
+.addToCartButtonClosed:hover {
+  opacity: 1;
 }
 
 @media (min-width: 768px) {

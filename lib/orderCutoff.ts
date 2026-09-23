@@ -1,6 +1,6 @@
 export type OrderWindow = "lunch" | "dinner" | "closed";
 
-export const IGNORE_ORDER_CUTOFF_FOR_TESTING = true;
+export const IGNORE_ORDER_CUTOFF_FOR_TESTING = false;
 
 export const ORDER_CUTOFFS = {
   lunch: {

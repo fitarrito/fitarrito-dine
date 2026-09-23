@@ -147,7 +147,9 @@ export default function SelectProtein({
 
         <button
           type="button"
-          className={styles.addToCartButton}
+          className={`${styles.addToCartButton} ${
+            orderWindow === "closed" ? styles.addToCartButtonClosed : ""
+          }`}
           onClick={() => void handleAddToCart()}
           disabled={orderWindow === "closed"}
         >

@@ -132,7 +132,9 @@ function PanAsianMenuCard({
           <p className={styles.price}>₹ {totalPrice}</p>
           <button
             type="button"
-            className={styles.addButton}
+            className={`${styles.addButton} ${
+              orderWindow === "closed" ? styles.addButtonClosed : ""
+            }`}
             onClick={() => void handleAddToCart()}
             disabled={orderWindow === "closed"}
           >
