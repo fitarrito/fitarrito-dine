@@ -13,8 +13,14 @@ import {
 } from "react-icons/fa";
 import CheckoutSteps from "@/components/checkout/CheckoutSteps";
 import OrderSummaryPanel from "@/components/checkout/OrderSummaryPanel";
-import { fetchCart } from "@lib/features/cartSlice";
+import { fetchCart, clearCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
+import { fetchJson } from "@lib/apiFetch";
+import { normalizeIndianPhone } from "@lib/normalizePhone";
+import {
+  createWhatsAppOrderLink,
+  formatOrderWhatsAppMessage,
+} from "@lib/whatsapp/send-order";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import styles from "./checkout.module.css";
 
@@ -47,6 +53,7 @@ export default function CheckoutPage() {
   const loading = useAppSelector((state) => state.cart.loading);
   const [form, setForm] = useState<DeliveryForm>(INITIAL_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     dispatch(fetchCart(getCartSession()));
@@ -67,7 +74,16 @@ export default function CheckoutPage() {
       setFormError(null);
     };
 
-  const handlePlaceOrder = () => {
+  const updateMobileNumber = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const digits = event.target.value.replace(/\D/g, "").slice(0, 10);
+
+    setForm((current) => ({ ...current, mobileNumber: digits }));
+    setFormError(null);
+  };
+
+  const handlePlaceOrder = async () => {
     const requiredFields: Array<keyof DeliveryForm> = [
       "fullName",
       "mobileNumber",
@@ -85,7 +101,82 @@ export default function CheckoutPage() {
     }
 
     setFormError(null);
-    alert("Order placed successfully! Confirmation step coming soon.");
+    setIsSubmitting(true);
+
+    try {
+      const session = getCartSession();
+
+      const customerPhone = normalizeIndianPhone(form.mobileNumber);
+      const subtotal = cartItems.reduce(
+        (sum, item) => sum + Number(item.price) * Number(item.quantity),
+        0,
+      );
+      const deliveryCharge = 0;
+
+      const result = await fetchJson<{
+        success: boolean;
+        orderId: string;
+        total: number;
+        message: string;
+      }>("/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: session.sessionId,
+          customerName: form.fullName,
+          customerPhone,
+          addressLine1: form.address,
+          area: form.area,
+          city: form.city,
+          pincode: form.pincode,
+          landmark: form.landmark,
+          deliveryInstructions: form.deliveryInstructions,
+          paymentMethod: "cash",
+        }),
+      });
+
+      const whatsappMessage = formatOrderWhatsAppMessage({
+        orderId: result.orderId,
+        customerName: form.fullName.trim(),
+        customerPhone,
+        items: cartItems.map((item) => ({
+          item_name: item.title,
+          selected_protein: item.selected_protein,
+          quantity: Number(item.quantity),
+          unit_price: Number(item.price),
+        })),
+        subtotal,
+        deliveryCharge,
+        total: result.total,
+        paymentMethod: "cash",
+        addressLine1: form.address.trim(),
+        area: form.area.trim(),
+        city: form.city.trim(),
+        pincode: form.pincode.trim(),
+        landmark: form.landmark.trim(),
+        deliveryInstructions: form.deliveryInstructions.trim(),
+      });
+
+      const whatsappUrl = createWhatsAppOrderLink(whatsappMessage);
+      const whatsappWindow = window.open(whatsappUrl, "_blank");
+
+      if (!whatsappWindow) {
+        window.location.href = whatsappUrl;
+        dispatch(clearCart());
+        return;
+      }
+
+      dispatch(clearCart());
+      router.push(`/menu?orderSuccess=${encodeURIComponent(result.orderId)}`);
+    } catch (error) {
+      setFormError(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while placing your order.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -137,13 +228,19 @@ export default function CheckoutPage() {
                 <span className={styles.label}>
                   Mobile Number <span className={styles.required}>*</span>
                 </span>
-                <span className={styles.inputWrap}>
+                <span className={`${styles.inputWrap} ${styles.phoneInputWrap}`}>
                   <FaPhone className={styles.inputIcon} aria-hidden />
+                  <span className={styles.phonePrefix} aria-hidden>
+                    +91
+                  </span>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
                     value={form.mobileNumber}
-                    onChange={updateField("mobileNumber")}
-                    placeholder="+91 98765 43210"
+                    onChange={updateMobileNumber}
+                    placeholder="98765 43210"
+                    maxLength={10}
                     required
                   />
                 </span>
@@ -268,8 +365,9 @@ export default function CheckoutPage() {
         </form>
 
         <OrderSummaryPanel
-          onPlaceOrder={handlePlaceOrder}
-          placeOrderDisabled={cartItems.length === 0}
+          onPlaceOrder={() => void handlePlaceOrder()}
+          placeOrderDisabled={cartItems.length === 0 || isSubmitting}
+          isSubmitting={isSubmitting}
         />
       </div>
     </div>

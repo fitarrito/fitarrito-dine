@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   FaArrowRight,
   FaClock,
-  FaInfoCircle,
   FaMoon,
   FaPen,
   FaShoppingCart,
@@ -18,21 +17,21 @@ import { removeCartItem } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import styles from "./OrderSummaryPanel.module.css";
 
-const DELIVERY_CHARGE = 30;
-
 type OrderSummaryPanelProps = {
   onPlaceOrder?: () => void;
   placeOrderDisabled?: boolean;
+  isSubmitting?: boolean;
 };
 
 export default function OrderSummaryPanel({
   onPlaceOrder,
   placeOrderDisabled = false,
+  isSubmitting = false,
 }: OrderSummaryPanelProps) {
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const subtotal = useAppSelector((state) => state.cart.totalAmt);
-  const totalAmount = subtotal + DELIVERY_CHARGE;
+  const totalAmount = subtotal;
 
   return (
     <aside className={styles.panel}>
@@ -101,13 +100,6 @@ export default function OrderSummaryPanel({
           <span>Subtotal</span>
           <span>₹{subtotal}</span>
         </div>
-        <div className={styles.totalRow}>
-          <span className={styles.deliveryLabel}>
-            Delivery Charge
-            <FaInfoCircle className={styles.infoIcon} aria-hidden />
-          </span>
-          <span>₹{DELIVERY_CHARGE}</span>
-        </div>
       </div>
 
       <div className={styles.totalAmountBox}>
@@ -158,8 +150,8 @@ export default function OrderSummaryPanel({
         disabled={placeOrderDisabled || cartItems.length === 0}
         onClick={onPlaceOrder}
       >
-        Place Order
-        <FaArrowRight aria-hidden />
+        {isSubmitting ? "Placing Order..." : "Place Order"}
+        {!isSubmitting ? <FaArrowRight aria-hidden /> : null}
       </button>
 
       <p className={styles.terms}>
