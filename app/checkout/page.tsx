@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import Script from "next/script";
 import { useRouter } from "next/navigation";
 import {
   FaBuilding,
@@ -14,62 +13,41 @@ import {
 } from "react-icons/fa";
 import CheckoutSteps from "@/components/checkout/CheckoutSteps";
 import OrderSummaryPanel from "@/components/checkout/OrderSummaryPanel";
-import { fetchCart, clearCart } from "@lib/features/cartSlice";
+import { fetchCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
-import { fetchJson } from "@lib/apiFetch";
 import { DELIVERY_AREAS, getDeliveryArea } from "@lib/deliveryAreas";
-import { normalizeIndianPhone } from "@lib/normalizePhone";
-import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import {
-  openRazorpayCheckout,
-  PaymentCancelledError,
-  PaymentFailedError,
-} from "@lib/razorpayCheckout";
+  isValidIndianMobile,
+  normalizeIndianPhone,
+} from "@lib/normalizePhone";
 import {
-  createWhatsAppOrderLink,
-  formatOrderWhatsAppMessage,
-} from "@lib/whatsapp/send-order";
+  EMPTY_CHECKOUT_DELIVERY,
+  loadCheckoutDelivery,
+  saveCheckoutDelivery,
+  type CheckoutDelivery,
+} from "@lib/checkoutDelivery";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import styles from "./checkout.module.css";
-
-type DeliveryForm = {
-  fullName: string;
-  mobileNumber: string;
-  address: string;
-  area: string;
-  landmark: string;
-  city: string;
-  pincode: string;
-  deliveryInstructions: string;
-};
-
-const INITIAL_FORM: DeliveryForm = {
-  fullName: "",
-  mobileNumber: "",
-  address: "",
-  area: "",
-  landmark: "",
-  city: "Chennai",
-  pincode: "",
-  deliveryInstructions: "",
-};
 
 export default function CheckoutPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const loading = useAppSelector((state) => state.cart.loading);
-  const [form, setForm] = useState<DeliveryForm>(INITIAL_FORM);
+  const [form, setForm] = useState<CheckoutDelivery>(EMPTY_CHECKOUT_DELIVERY);
   const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitLabel, setSubmitLabel] = useState("Pay Now");
 
   useEffect(() => {
     dispatch(fetchCart(getCartSession()));
+    const saved = loadCheckoutDelivery();
+
+    if (saved) {
+      setForm(saved);
+    }
   }, [dispatch]);
 
   useEffect(() => {
-    if (loading === "pending") return;
+    if (loading === "idle" || loading === "pending") return;
 
     if (cartItems.length === 0) {
       router.replace("/menu");
@@ -77,7 +55,7 @@ export default function CheckoutPage() {
   }, [cartItems.length, loading, router]);
 
   const updateField =
-    (field: keyof DeliveryForm) =>
+    (field: keyof CheckoutDelivery) =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((current) => ({ ...current, [field]: event.target.value }));
       setFormError(null);
@@ -103,8 +81,8 @@ export default function CheckoutPage() {
     setFormError(null);
   };
 
-  const handlePlaceOrder = async () => {
-    const requiredFields: Array<keyof DeliveryForm> = [
+  const handleContinueToPayment = () => {
+    const requiredFields: Array<keyof CheckoutDelivery> = [
       "fullName",
       "mobileNumber",
       "address",
@@ -120,172 +98,18 @@ export default function CheckoutPage() {
       return;
     }
 
-    setFormError(null);
-    setIsSubmitting(true);
-    setSubmitLabel("Opening payment...");
-
-    try {
-      const session = getCartSession();
-      const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-
-      if (!razorpayKeyId) {
-        throw new Error(
-          "Razorpay is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID.",
-        );
-      }
-
-      const customerPhone = normalizeIndianPhone(form.mobileNumber);
-      const subtotal = cartItems.reduce(
-        (sum, item) => sum + Number(item.price) * Number(item.quantity),
-        0,
-      );
-      const deliveryCharge = 0;
-      const amountPaise = Math.round(subtotal * 100);
-
-      if (amountPaise < 100) {
-        throw new Error("Order total is too low to pay online.");
-      }
-
-      const receipt = `fit_${session.sessionId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 16)}_${Date.now().toString(36)}`.slice(
-        0,
-        40,
-      );
-
-      const razorpayOrder = await fetchJson<{
-        order_id: string;
-        amount: number | string;
-        currency: string;
-      }>("/api/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: amountPaise,
-          currency: "INR",
-          receipt,
-          sessionId: session.sessionId,
-        }),
-      });
-
-      const payment = await openRazorpayCheckout({
-        key: razorpayKeyId,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        name: "Fitarrito",
-        description: "Order payment",
-        order_id: razorpayOrder.order_id,
-        prefill: {
-          name: form.fullName.trim(),
-          contact: form.mobileNumber.trim(),
-        },
-        theme: { color: "#fc1e1e" },
-      });
-
-      setSubmitLabel("Verifying payment...");
-
-      const verification = await fetchJson<{ success: boolean }>(
-        "/api/verify-payment",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            razorpay_order_id: payment.razorpay_order_id,
-            razorpay_payment_id: payment.razorpay_payment_id,
-            razorpay_signature: payment.razorpay_signature,
-          }),
-        },
-      );
-
-      if (!verification.success) {
-        throw new PaymentFailedError(
-          "Payment could not be verified. Your order was not placed.",
-        );
-      }
-
-      setSubmitLabel("Placing order...");
-
-      const result = await fetchJson<{
-        success: boolean;
-        orderId: string;
-        total: number;
-        message: string;
-      }>("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: session.sessionId,
-          customerName: form.fullName,
-          customerPhone,
-          addressLine1: form.address,
-          area: form.area,
-          city: form.city,
-          pincode: form.pincode,
-          landmark: form.landmark,
-          deliveryInstructions: form.deliveryInstructions,
-          paymentMethod: "razorpay",
-          razorpayOrderId: payment.razorpay_order_id,
-          razorpayPaymentId: payment.razorpay_payment_id,
-        }),
-      });
-
-      const whatsappMessage = formatOrderWhatsAppMessage({
-        orderId: result.orderId,
-        customerName: form.fullName.trim(),
-        customerPhone,
-        items: cartItems.map((item) => {
-          const customization = getCartItemCustomization(item);
-
-          return {
-            item_name: customization.title,
-            selected_protein: customization.protein,
-            selected_toppings: customization.toppings,
-            quantity: Number(item.quantity),
-            unit_price: Number(item.price),
-          };
-        }),
-        subtotal,
-        deliveryCharge,
-        total: result.total,
-        paymentMethod: "razorpay",
-        addressLine1: form.address.trim(),
-        area: form.area.trim(),
-        city: form.city.trim(),
-        pincode: form.pincode.trim(),
-        landmark: form.landmark.trim(),
-        deliveryInstructions: form.deliveryInstructions.trim(),
-      });
-
-      const whatsappUrl = createWhatsAppOrderLink(whatsappMessage);
-      const whatsappWindow = window.open(whatsappUrl, "_blank");
-
-      if (!whatsappWindow) {
-        window.location.href = whatsappUrl;
-        dispatch(clearCart());
-        return;
-      }
-
-      dispatch(clearCart());
-      router.push(`/menu?orderSuccess=${encodeURIComponent(result.orderId)}`);
-    } catch (error) {
-      if (error instanceof PaymentCancelledError) {
-        setFormError("Payment cancelled. Your order was not placed.");
-      } else if (error instanceof PaymentFailedError) {
-        setFormError(error.message);
-      } else {
-        setFormError(
-          error instanceof Error
-            ? error.message
-            : "Something went wrong while placing your order.",
-        );
-      }
-    } finally {
-      setIsSubmitting(false);
-      setSubmitLabel("Pay Now");
+    if (!isValidIndianMobile(normalizeIndianPhone(form.mobileNumber))) {
+      setFormError("Please enter a valid 10-digit mobile number.");
+      return;
     }
+
+    saveCheckoutDelivery(form);
+    router.push("/checkout/payment");
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    handlePlaceOrder();
+    handleContinueToPayment();
   };
 
   if (loading === "pending" && cartItems.length === 0) {
@@ -294,10 +118,6 @@ export default function CheckoutPage() {
 
   return (
     <div className={styles.page}>
-      <Script
-        src="https://checkout.razorpay.com/v1/checkout.js"
-        strategy="lazyOnload"
-      />
       <CheckoutSteps currentStep={2} />
 
       <div className={styles.layout}>
@@ -478,10 +298,10 @@ export default function CheckoutPage() {
         </form>
 
         <OrderSummaryPanel
-          onPlaceOrder={() => void handlePlaceOrder()}
-          placeOrderDisabled={cartItems.length === 0 || isSubmitting}
-          isSubmitting={isSubmitting}
-          submitLabel={submitLabel}
+          variant="delivery"
+          onPlaceOrder={handleContinueToPayment}
+          placeOrderDisabled={cartItems.length === 0}
+          submitLabel="Place Order"
         />
       </div>
     </div>

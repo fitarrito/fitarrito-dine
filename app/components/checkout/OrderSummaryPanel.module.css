@@ -101,6 +101,64 @@
   color: #111827;
 }
 
+.itemQty {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.couponRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.couponIcon {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.couponRow input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.82rem;
+  color: #111827;
+}
+
+.couponRow input:focus {
+  outline: none;
+}
+
+.couponRow button {
+  border: none;
+  background: none;
+  color: var(--customTheme, #fc1e1e);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.couponMessage {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  color: #b91c1c;
+}
+
+.buttonHint {
+  margin: 0.55rem 0 0;
+  text-align: center;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
 .removeButton {
   display: grid;
   place-items: center;

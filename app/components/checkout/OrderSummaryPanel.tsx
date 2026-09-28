@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -24,19 +25,39 @@ type OrderSummaryPanelProps = {
   placeOrderDisabled?: boolean;
   isSubmitting?: boolean;
   submitLabel?: string;
+  variant?: "delivery" | "payment";
+  buttonHint?: string | null;
 };
 
 export default function OrderSummaryPanel({
   onPlaceOrder,
   placeOrderDisabled = false,
   isSubmitting = false,
-  submitLabel = "Pay Now",
+  submitLabel,
+  variant = "delivery",
+  buttonHint = null,
 }: OrderSummaryPanelProps) {
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const subtotal = useAppSelector((state) => state.cart.totalAmt);
   const totalAmount = subtotal;
   const dinnerCutoff = getDinnerCutoffLabel();
+  const isPayment = variant === "payment";
+  const itemCount = cartItems.reduce((sum, item) => sum + Number(item.quantity), 0);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  const defaultLabel = isPayment
+    ? `Pay ₹${totalAmount} Securely`
+    : "Place Order";
+
+  const handleApplyCoupon = () => {
+    if (!couponCode.trim()) {
+      setCouponMessage("Enter a coupon code.");
+      return;
+    }
+
+    setCouponMessage("This coupon is not valid.");
+  };
 
   return (
     <aside className={styles.panel}>
@@ -77,27 +98,33 @@ export default function OrderSummaryPanel({
                 {customization.toppings ? (
                   <p className={styles.itemMeta}>Toppings: {customization.toppings}</p>
                 ) : null}
-                <p className={styles.itemMeta}>Qty: {item.quantity}</p>
+                {!isPayment ? (
+                  <p className={styles.itemMeta}>Qty: {item.quantity}</p>
+                ) : null}
               </div>
 
               <div className={styles.itemPricing}>
                 <p className={styles.itemPrice}>₹{item.price * item.quantity}</p>
-                <button
-                  type="button"
-                  className={styles.removeButton}
-                  aria-label={`Remove ${item.title}`}
-                  onClick={() =>
-                    item.id &&
-                    dispatch(
-                      removeCartItem({
-                        id: item.id,
-                        session: getCartSession(),
-                      }),
-                    )
-                  }
-                >
-                  <FaTimes aria-hidden />
-                </button>
+                {isPayment ? (
+                  <p className={styles.itemQty}>Qty: {item.quantity}</p>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.removeButton}
+                    aria-label={`Remove ${item.title}`}
+                    onClick={() =>
+                      item.id &&
+                      dispatch(
+                        removeCartItem({
+                          id: item.id,
+                          session: getCartSession(),
+                        }),
+                      )
+                    }
+                  >
+                    <FaTimes aria-hidden />
+                  </button>
+                )}
               </div>
             </li>
           );
@@ -106,7 +133,7 @@ export default function OrderSummaryPanel({
 
       <div className={styles.totals}>
         <div className={styles.totalRow}>
-          <span>Subtotal</span>
+          <span>{isPayment ? `Subtotal (${itemCount} items)` : "Subtotal"}</span>
           <span>₹{subtotal}</span>
         </div>
       </div>
@@ -116,44 +143,59 @@ export default function OrderSummaryPanel({
         <strong>₹{totalAmount}</strong>
       </div>
 
-      <div className={styles.paymentNote}>
-        <FaLock className={styles.paymentIcon} aria-hidden />
-        <div>
-          <p className={styles.paymentTitle}>Pay securely with Razorpay</p>
-          <p className={styles.paymentHint}>
-            UPI, cards, and netbanking. Your order is placed after payment.
-          </p>
+      {isPayment ? (
+        <div className={styles.couponRow}>
+          <FaPen className={styles.couponIcon} aria-hidden />
+          <input
+            type="text"
+            value={couponCode}
+            onChange={(event) => {
+              setCouponCode(event.target.value);
+              setCouponMessage(null);
+            }}
+            placeholder="Have a coupon code?"
+            aria-label="Coupon code"
+          />
+          <button type="button" onClick={handleApplyCoupon}>
+            Apply
+          </button>
         </div>
-      </div>
+      ) : null}
 
-      <div className={styles.onDemandBox}>
-        <div className={styles.onDemandHeader}>
-          <FaStore className={styles.storeIcon} aria-hidden />
-          <span>On-Demand Orders</span>
-        </div>
+      {couponMessage ? <p className={styles.couponMessage}>{couponMessage}</p> : null}
 
-        <div className={styles.orderWindows}>
-          <div className={styles.orderWindow}>
-            <FaSun className={styles.sunIcon} aria-hidden />
-            <div>
-              <p className={styles.windowTitle}>Lunch Orders</p>
-              <p className={styles.windowHint}>
-                Place your order before <strong>10:00 AM</strong>
-              </p>
+      {!isPayment ? (
+        <>
+          <div className={styles.onDemandBox}>
+            <div className={styles.onDemandHeader}>
+              <FaStore className={styles.storeIcon} aria-hidden />
+              <span>On-Demand Orders</span>
+            </div>
+
+            <div className={styles.orderWindows}>
+              <div className={styles.orderWindow}>
+                <FaSun className={styles.sunIcon} aria-hidden />
+                <div>
+                  <p className={styles.windowTitle}>Lunch Orders</p>
+                  <p className={styles.windowHint}>
+                    Place your order before <strong>10:00 AM</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.orderWindow}>
+                <FaMoon className={styles.moonIcon} aria-hidden />
+                <div>
+                  <p className={styles.windowTitle}>Dinner Orders</p>
+                  <p className={styles.windowHint}>
+                    Place your order before <strong>{dinnerCutoff}</strong>
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-
-          <div className={styles.orderWindow}>
-            <FaMoon className={styles.moonIcon} aria-hidden />
-            <div>
-              <p className={styles.windowTitle}>Dinner Orders</p>
-              <p className={styles.windowHint}>
-                Place your order before <strong>{dinnerCutoff}</strong>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+        </>
+      ) : null}
 
       <button
         type="button"
@@ -161,13 +203,18 @@ export default function OrderSummaryPanel({
         disabled={placeOrderDisabled || cartItems.length === 0}
         onClick={onPlaceOrder}
       >
-        {isSubmitting ? submitLabel : "Pay Now"}
+        {isPayment && !isSubmitting ? <FaLock aria-hidden /> : null}
+        {isSubmitting ? submitLabel : submitLabel ?? defaultLabel}
         {!isSubmitting ? <FaArrowRight aria-hidden /> : null}
       </button>
 
-      <p className={styles.terms}>
-        By placing this order, you agree to our terms and conditions.
-      </p>
+      {buttonHint ? <p className={styles.buttonHint}>{buttonHint}</p> : null}
+
+      {!isPayment ? (
+        <p className={styles.terms}>
+          By placing this order, you agree to our terms and conditions.
+        </p>
+      ) : null}
     </aside>
   );
 }

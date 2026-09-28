@@ -4,7 +4,7 @@ import styles from "./CheckoutSteps.module.css";
 const STEPS = [
   { id: 1, label: "Cart" },
   { id: 2, label: "Delivery Details" },
-  { id: 3, label: "Confirm Order" },
+  { id: 3, label: "Payment & Confirm Order" },
 ] as const;
 
 type CheckoutStepsProps = {
