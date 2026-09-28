@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import {
   FaBuilding,
@@ -19,6 +20,11 @@ import { fetchJson } from "@lib/apiFetch";
 import { DELIVERY_AREAS, getDeliveryArea } from "@lib/deliveryAreas";
 import { normalizeIndianPhone } from "@lib/normalizePhone";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
+import {
+  openRazorpayCheckout,
+  PaymentCancelledError,
+  PaymentFailedError,
+} from "@lib/razorpayCheckout";
 import {
   createWhatsAppOrderLink,
   formatOrderWhatsAppMessage,
@@ -56,6 +62,7 @@ export default function CheckoutPage() {
   const [form, setForm] = useState<DeliveryForm>(INITIAL_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitLabel, setSubmitLabel] = useState("Pay Now");
 
   useEffect(() => {
     dispatch(fetchCart(getCartSession()));
@@ -115,9 +122,17 @@ export default function CheckoutPage() {
 
     setFormError(null);
     setIsSubmitting(true);
+    setSubmitLabel("Opening payment...");
 
     try {
       const session = getCartSession();
+      const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+
+      if (!razorpayKeyId) {
+        throw new Error(
+          "Razorpay is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID.",
+        );
+      }
 
       const customerPhone = normalizeIndianPhone(form.mobileNumber);
       const subtotal = cartItems.reduce(
@@ -125,6 +140,68 @@ export default function CheckoutPage() {
         0,
       );
       const deliveryCharge = 0;
+      const amountPaise = Math.round(subtotal * 100);
+
+      if (amountPaise < 100) {
+        throw new Error("Order total is too low to pay online.");
+      }
+
+      const receipt = `fit_${session.sessionId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 16)}_${Date.now().toString(36)}`.slice(
+        0,
+        40,
+      );
+
+      const razorpayOrder = await fetchJson<{
+        order_id: string;
+        amount: number | string;
+        currency: string;
+      }>("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: amountPaise,
+          currency: "INR",
+          receipt,
+          sessionId: session.sessionId,
+        }),
+      });
+
+      const payment = await openRazorpayCheckout({
+        key: razorpayKeyId,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: "Fitarrito",
+        description: "Order payment",
+        order_id: razorpayOrder.order_id,
+        prefill: {
+          name: form.fullName.trim(),
+          contact: form.mobileNumber.trim(),
+        },
+        theme: { color: "#fc1e1e" },
+      });
+
+      setSubmitLabel("Verifying payment...");
+
+      const verification = await fetchJson<{ success: boolean }>(
+        "/api/verify-payment",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            razorpay_order_id: payment.razorpay_order_id,
+            razorpay_payment_id: payment.razorpay_payment_id,
+            razorpay_signature: payment.razorpay_signature,
+          }),
+        },
+      );
+
+      if (!verification.success) {
+        throw new PaymentFailedError(
+          "Payment could not be verified. Your order was not placed.",
+        );
+      }
+
+      setSubmitLabel("Placing order...");
 
       const result = await fetchJson<{
         success: boolean;
@@ -144,7 +221,9 @@ export default function CheckoutPage() {
           pincode: form.pincode,
           landmark: form.landmark,
           deliveryInstructions: form.deliveryInstructions,
-          paymentMethod: "cash",
+          paymentMethod: "razorpay",
+          razorpayOrderId: payment.razorpay_order_id,
+          razorpayPaymentId: payment.razorpay_payment_id,
         }),
       });
 
@@ -166,7 +245,7 @@ export default function CheckoutPage() {
         subtotal,
         deliveryCharge,
         total: result.total,
-        paymentMethod: "cash",
+        paymentMethod: "razorpay",
         addressLine1: form.address.trim(),
         area: form.area.trim(),
         city: form.city.trim(),
@@ -187,13 +266,20 @@ export default function CheckoutPage() {
       dispatch(clearCart());
       router.push(`/menu?orderSuccess=${encodeURIComponent(result.orderId)}`);
     } catch (error) {
-      setFormError(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong while placing your order.",
-      );
+      if (error instanceof PaymentCancelledError) {
+        setFormError("Payment cancelled. Your order was not placed.");
+      } else if (error instanceof PaymentFailedError) {
+        setFormError(error.message);
+      } else {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : "Something went wrong while placing your order.",
+        );
+      }
     } finally {
       setIsSubmitting(false);
+      setSubmitLabel("Pay Now");
     }
   };
 
@@ -208,6 +294,10 @@ export default function CheckoutPage() {
 
   return (
     <div className={styles.page}>
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="lazyOnload"
+      />
       <CheckoutSteps currentStep={2} />
 
       <div className={styles.layout}>
@@ -391,6 +481,7 @@ export default function CheckoutPage() {
           onPlaceOrder={() => void handlePlaceOrder()}
           placeOrderDisabled={cartItems.length === 0 || isSubmitting}
           isSubmitting={isSubmitting}
+          submitLabel={submitLabel}
         />
       </div>
     </div>

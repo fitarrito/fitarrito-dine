@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   FaArrowRight,
-  FaClock,
+  FaLock,
   FaMoon,
   FaPen,
   FaShoppingCart,
@@ -23,12 +23,14 @@ type OrderSummaryPanelProps = {
   onPlaceOrder?: () => void;
   placeOrderDisabled?: boolean;
   isSubmitting?: boolean;
+  submitLabel?: string;
 };
 
 export default function OrderSummaryPanel({
   onPlaceOrder,
   placeOrderDisabled = false,
   isSubmitting = false,
+  submitLabel = "Pay Now",
 }: OrderSummaryPanelProps) {
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
@@ -115,10 +117,12 @@ export default function OrderSummaryPanel({
       </div>
 
       <div className={styles.paymentNote}>
-        <FaClock className={styles.paymentIcon} aria-hidden />
+        <FaLock className={styles.paymentIcon} aria-hidden />
         <div>
-          <p className={styles.paymentTitle}>Cash or UPI (QR) only</p>
-          <p className={styles.paymentHint}>You can pay at the time of delivery.</p>
+          <p className={styles.paymentTitle}>Pay securely with Razorpay</p>
+          <p className={styles.paymentHint}>
+            UPI, cards, and netbanking. Your order is placed after payment.
+          </p>
         </div>
       </div>
 
@@ -157,7 +161,7 @@ export default function OrderSummaryPanel({
         disabled={placeOrderDisabled || cartItems.length === 0}
         onClick={onPlaceOrder}
       >
-        {isSubmitting ? "Placing Order..." : "Place Order"}
+        {isSubmitting ? submitLabel : "Pay Now"}
         {!isSubmitting ? <FaArrowRight aria-hidden /> : null}
       </button>
 

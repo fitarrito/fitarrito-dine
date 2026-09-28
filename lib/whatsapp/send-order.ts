@@ -70,10 +70,13 @@ export function formatOrderWhatsAppMessage(
     .filter(Boolean)
     .join("\n");
 
+  const paymentMethod = input.paymentMethod.toLowerCase();
   const paymentLabel =
-    input.paymentMethod.toLowerCase() === "cash"
+    paymentMethod === "cash"
       ? "Cash"
-      : input.paymentMethod;
+      : paymentMethod === "razorpay"
+        ? "Razorpay (Paid)"
+        : input.paymentMethod;
 
   return `🍽️ NEW FITARRITO ORDER
 
