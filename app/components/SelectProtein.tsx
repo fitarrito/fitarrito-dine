@@ -6,6 +6,7 @@ import {
   FaChevronDown,
   FaInfoCircle,
   FaShoppingCart,
+  FaSpinner,
 } from "react-icons/fa";
 import { addToCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
@@ -53,6 +54,7 @@ export default function SelectProtein({
   );
   const [selectedProteinName, setSelectedProteinName] = useState<string>("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
   const pricing = calculateMenuItemPricing(
     item,
@@ -67,7 +69,7 @@ export default function SelectProtein({
       : item.title;
 
   const handleAddToCart = async () => {
-    if (orderWindow === "closed") return;
+    if (orderWindow === "closed" || isAdding) return;
     if (hasSizeVariants && !selectedSizeName) {
       setActionError("Please select a size.");
       return;
@@ -78,6 +80,7 @@ export default function SelectProtein({
     }
 
     setActionError(null);
+    setIsAdding(true);
 
     try {
       const session = getCartSession();
@@ -105,6 +108,8 @@ export default function SelectProtein({
       setActionError(
         error instanceof Error ? error.message : "Could not add item to cart.",
       );
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -236,14 +241,21 @@ export default function SelectProtein({
             orderWindow === "closed" ? styles.addToCartButtonClosed : ""
           }`}
           onClick={() => void handleAddToCart()}
-          disabled={orderWindow === "closed"}
+          disabled={orderWindow === "closed" || isAdding}
+          aria-busy={isAdding}
         >
-          {orderWindow === "closed" ? null : <FaShoppingCart aria-hidden />}
+          {orderWindow === "closed" ? null : isAdding ? (
+            <FaSpinner className={styles.spinner} aria-hidden />
+          ) : (
+            <FaShoppingCart aria-hidden />
+          )}
           {orderWindow === "closed"
             ? "Ordering Closed"
-            : !simple && availableProteins.length > 0 && !selectedProteinName
-              ? "Select protein"
-              : "Add to Cart"}
+            : isAdding
+              ? "Adding..."
+              : !simple && availableProteins.length > 0 && !selectedProteinName
+                ? "Select protein"
+                : "Add to Cart"}
         </button>
         {actionError ? (
           <p className={styles.addToCartError}>{actionError}</p>

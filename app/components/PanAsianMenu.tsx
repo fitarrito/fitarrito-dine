@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { FaLeaf } from "react-icons/fa";
+import { FaLeaf, FaSpinner } from "react-icons/fa";
 import { addToCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { useAppDispatch } from "@lib/hooks";
@@ -46,6 +46,7 @@ function PanAsianMenuCard({
   const [selectedProteinName, setSelectedProteinName] = useState<string>(
     availableProteins[0]?.name ?? "",
   );
+  const [isAdding, setIsAdding] = useState(false);
 
   const totalPrice = useMemo(() => {
     const basePrice = parseFloat(String(item.price || 0));
@@ -57,23 +58,27 @@ function PanAsianMenuCard({
   }, [availableProteins, item.price, selectedProteinName]);
 
   const handleAddToCart = async () => {
-    if (orderWindow === "closed") return;
-
-    const session = getCartSession();
-
+    if (orderWindow === "closed" || isAdding) return;
     if (!selectedProteinName) return;
 
-    const result = await dispatch(
-      addToCart({
-        sessionId: session.sessionId,
-        menuItemId: String(item.id),
-        selectedProtein: selectedProteinName,
-        quantity: 1,
-      }),
-    );
+    setIsAdding(true);
 
-    if (addToCart.fulfilled.match(result)) {
-      onAddedToCart?.();
+    try {
+      const session = getCartSession();
+      const result = await dispatch(
+        addToCart({
+          sessionId: session.sessionId,
+          menuItemId: String(item.id),
+          selectedProtein: selectedProteinName,
+          quantity: 1,
+        }),
+      );
+
+      if (addToCart.fulfilled.match(result)) {
+        onAddedToCart?.();
+      }
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -140,9 +145,15 @@ function PanAsianMenuCard({
               orderWindow === "closed" ? styles.addButtonClosed : ""
             }`}
             onClick={() => void handleAddToCart()}
-            disabled={orderWindow === "closed"}
+            disabled={orderWindow === "closed" || isAdding}
+            aria-busy={isAdding}
           >
-            {orderWindow === "closed" ? "Ordering Closed" : "Add to Cart"}
+            {isAdding ? <FaSpinner className={styles.spinner} aria-hidden /> : null}
+            {orderWindow === "closed"
+              ? "Ordering Closed"
+              : isAdding
+                ? "Adding..."
+                : "Add to Cart"}
           </button>
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { FaHeart, FaLeaf, FaShoppingCart, FaTimes, FaUtensils } from "react-icons/fa";
+import { FaHeart, FaLeaf, FaShoppingCart, FaSpinner, FaTimes, FaUtensils } from "react-icons/fa";
 import { GiMuscleUp } from "react-icons/gi";
 import { addToCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
@@ -389,8 +389,13 @@ export default function SaladCustomizeModal({
                 (sizeVariants.length > 0 && !selectedSizeName) ||
                 (availableProteins.length > 0 && !selectedProteinName)
               }
+              aria-busy={isAdding}
             >
-              {orderWindow === "closed" ? null : <FaShoppingCart aria-hidden />}
+              {orderWindow === "closed" ? null : isAdding ? (
+                <FaSpinner className={styles.spinner} aria-hidden />
+              ) : (
+                <FaShoppingCart aria-hidden />
+              )}
               {orderWindow === "closed"
                 ? "Ordering Closed"
                 : isAdding

@@ -466,6 +466,16 @@
   opacity: 0.72;
 }
 
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .addButtonClosed {
   background: #6b7280;
   opacity: 1;

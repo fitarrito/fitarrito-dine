@@ -6,6 +6,7 @@ import {
   FaChevronDown,
   FaHeart,
   FaLeaf,
+  FaSpinner,
   FaUtensils,
 } from "react-icons/fa";
 import { GiMuscleUp } from "react-icons/gi";
@@ -50,6 +51,7 @@ function FitarritoHouseCard({
   );
   const [selectedProteinName, setSelectedProteinName] = useState<string>("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
   const handleAddToCart = async () => {
     if (isSalad) {
@@ -57,7 +59,7 @@ function FitarritoHouseCard({
       return;
     }
 
-    if (orderWindow === "closed") return;
+    if (orderWindow === "closed" || isAdding) return;
 
     if (sizeVariants.length > 0 && !selectedSizeName) {
       setActionError("Please select a size.");
@@ -69,6 +71,7 @@ function FitarritoHouseCard({
     }
 
     setActionError(null);
+    setIsAdding(true);
 
     try {
       const session = getCartSession();
@@ -95,6 +98,8 @@ function FitarritoHouseCard({
       setActionError(
         error instanceof Error ? error.message : "Could not add item to cart.",
       );
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -204,15 +209,21 @@ function FitarritoHouseCard({
               orderWindow === "closed" && !isSalad ? styles.addButtonClosed : ""
             }`}
             onClick={() => void handleAddToCart()}
-            disabled={orderWindow === "closed" && !isSalad}
+            disabled={(orderWindow === "closed" && !isSalad) || isAdding}
+            aria-busy={isAdding}
           >
+            {isAdding ? (
+              <FaSpinner className={styles.spinner} aria-hidden />
+            ) : null}
             {orderWindow === "closed" && !isSalad
               ? "Ordering Closed"
-              : !isSalad &&
-                  availableProteins.length > 0 &&
-                  !selectedProteinName
-                ? "Select protein"
-                : "Add to Cart"}
+              : isAdding
+                ? "Adding..."
+                : !isSalad &&
+                    availableProteins.length > 0 &&
+                    !selectedProteinName
+                  ? "Select protein"
+                  : "Add to Cart"}
           </button>
           {actionError ? (
             <p className={styles.addError}>{actionError}</p>
