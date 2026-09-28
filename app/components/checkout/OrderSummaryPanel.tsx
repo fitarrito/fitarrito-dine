@@ -60,7 +60,7 @@ export default function OrderSummaryPanel({
   };
 
   return (
-    <aside className={styles.panel}>
+    <aside className={`${styles.panel} ${isPayment ? styles.panelSticky : ""}`}>
       <div className={styles.header}>
         <div className={styles.headerTitle}>
           <FaShoppingCart className={styles.cartIcon} aria-hidden />
@@ -86,6 +86,7 @@ export default function OrderSummaryPanel({
                   src={item.image_url ?? item.imageUrl ?? "/fallback-image.jpg"}
                   alt={item.title}
                   fill
+                  sizes="56px"
                   className={styles.itemImage}
                 />
               </div>

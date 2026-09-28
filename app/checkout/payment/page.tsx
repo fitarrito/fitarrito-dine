@@ -315,13 +315,19 @@ export default function CheckoutPaymentPage() {
                   </p>
                   <span className={styles.brands}>
                     <span className={styles.brandLabel}>UPI</span>
-                    <FaCcVisa className={`${styles.brandIcon} ${styles.brandVisa}`} aria-label="Visa" />
-                    <FaCcMastercard
-                      className={`${styles.brandIcon} ${styles.brandMastercard}`}
-                      aria-label="Mastercard"
-                    />
+                    <span className={styles.brandLabel}>
+                      <FaCcVisa className={`${styles.brandIcon} ${styles.brandVisa}`} aria-label="Visa" />
+                    </span>
+                    <span className={styles.brandLabel}>
+                      <FaCcMastercard
+                        className={`${styles.brandIcon} ${styles.brandMastercard}`}
+                        aria-label="Mastercard"
+                      />
+                    </span>
                     <span className={styles.brandLabel}>RuPay</span>
-                    <FaCcAmex className={`${styles.brandIcon} ${styles.brandAmex}`} aria-label="American Express" />
+                    <span className={styles.brandLabel}>
+                      <FaCcAmex className={`${styles.brandIcon} ${styles.brandAmex}`} aria-label="American Express" />
+                    </span>
                     <span className={styles.brandLabel}>GPay</span>
                   </span>
                 </span>

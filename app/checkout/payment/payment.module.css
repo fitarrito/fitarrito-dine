@@ -49,7 +49,7 @@
 
 .cardTitle {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.65rem;
 }
 
@@ -137,6 +137,10 @@
   cursor: pointer;
 }
 
+.method:hover {
+  border-color: #fecaca;
+}
+
 .methodSelected {
   border-color: #fecaca;
   background: #fff7f7;
@@ -194,7 +198,7 @@
 }
 
 .brandIcon {
-  font-size: 1.35rem;
+  font-size: 1.05rem;
   color: #374151;
 }
 
@@ -226,7 +230,7 @@
 
 .secureBanner {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.65rem;
   padding: 0.9rem 1rem;
   border-radius: 12px;
