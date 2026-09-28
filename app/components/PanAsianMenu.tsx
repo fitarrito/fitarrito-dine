@@ -63,7 +63,7 @@ function PanAsianMenuCard({
 
     if (!selectedProteinName) return;
 
-    await dispatch(
+    const result = await dispatch(
       addToCart({
         sessionId: session.sessionId,
         menuItemId: String(item.id),
@@ -72,7 +72,9 @@ function PanAsianMenuCard({
       }),
     );
 
-    onAddedToCart?.();
+    if (addToCart.fulfilled.match(result)) {
+      onAddedToCart?.();
+    }
   };
 
   const renderProteinButton = (protein: ProteinVariant) => {
@@ -95,6 +97,7 @@ function PanAsianMenuCard({
             width={18}
             height={18}
             className={styles.proteinIcon}
+            style={{ pointerEvents: "none" }}
           />
         ) : null}
         <span className={styles.proteinLabelText}>

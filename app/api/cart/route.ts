@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (menuItemRow.order_type !== "on_demand") {
+    if (menuItemRow.order_type && menuItemRow.order_type !== "on_demand") {
       return NextResponse.json(
         { error: "This item is not available for on-demand ordering." },
         { status: 400 },
@@ -191,12 +191,16 @@ export async function POST(request: Request) {
     const { data: existingItem, error: existingError } = await existingQuery.maybeSingle();
 
     if (existingError) {
-      console.error("Existing cart lookup error:", existingError);
+      const missingSizeColumn = /selected_size/i.test(existingError.message ?? "");
 
-      return NextResponse.json(
-        { error: "Unable to check cart." },
-        { status: 500 },
-      );
+      if (!missingSizeColumn) {
+        console.error("Existing cart lookup error:", existingError);
+
+        return NextResponse.json(
+          { error: "Unable to check cart." },
+          { status: 500 },
+        );
+      }
     }
 
     if (existingItem) {
@@ -255,6 +259,37 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError) {
+      const missingSizeColumn = /selected_size/i.test(insertError.message ?? "");
+
+      if (missingSizeColumn) {
+        const { data: fallbackItem, error: fallbackError } = await supabaseAdmin
+          .from("CartItems")
+          .insert({
+            session_id: sessionId,
+            menu_item_id: String(menuItemRow.id),
+            title: menuItemRow.title,
+            image_url: menuItemRow.imageUrl,
+            selected_protein: selectedProtein,
+            quantity,
+            base_price: basePrice,
+            protein_price: proteinPrice,
+            price: unitPrice,
+          })
+          .select()
+          .single();
+
+        if (!fallbackError && fallbackItem) {
+          return NextResponse.json({
+            success: true,
+            message: "Added to cart.",
+            item: enrichCartItem(
+              fallbackItem as CartItemRecord,
+              menuItemRow as menuItem,
+            ),
+          });
+        }
+      }
+
       console.error("Cart insert error:", insertError);
 
       return NextResponse.json(

@@ -49,6 +49,7 @@ function FitarritoHouseCard({
     sizeVariants[0]?.name ?? "",
   );
   const [selectedProteinName, setSelectedProteinName] = useState<string>("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const handleAddToCart = async () => {
     if (isSalad) {
@@ -58,22 +59,43 @@ function FitarritoHouseCard({
 
     if (orderWindow === "closed") return;
 
-    if (sizeVariants.length > 0 && !selectedSizeName) return;
-    if (availableProteins.length > 0 && !selectedProteinName) return;
+    if (sizeVariants.length > 0 && !selectedSizeName) {
+      setActionError("Please select a size.");
+      return;
+    }
+    if (availableProteins.length > 0 && !selectedProteinName) {
+      setActionError("Please select a protein.");
+      return;
+    }
 
-    const session = getCartSession();
+    setActionError(null);
 
-    await dispatch(
-      addToCart({
-        sessionId: session.sessionId,
-        menuItemId: String(item.id),
-        selectedProtein: selectedProteinName,
-        selectedSize: selectedSizeName || undefined,
-        quantity: 1,
-      }),
-    );
+    try {
+      const session = getCartSession();
+      const result = await dispatch(
+        addToCart({
+          sessionId: session.sessionId,
+          menuItemId: String(item.id),
+          selectedProtein: selectedProteinName,
+          selectedSize: selectedSizeName || undefined,
+          quantity: 1,
+        }),
+      );
 
-    onAddedToCart?.();
+      if (addToCart.fulfilled.match(result)) {
+        onAddedToCart?.();
+        return;
+      }
+
+      setActionError(
+        (typeof result.payload === "string" && result.payload) ||
+          "Could not add item to cart.",
+      );
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Could not add item to cart.",
+      );
+    }
   };
 
   const renderSizeButton = (size: SizeVariant) => {
@@ -101,7 +123,10 @@ function FitarritoHouseCard({
         key={protein.name}
         type="button"
         className={`${styles.proteinChip} ${active ? styles.proteinChipActive : ""}`}
-        onClick={() => setSelectedProteinName(protein.name)}
+        onClick={() => {
+          setSelectedProteinName(protein.name);
+          setActionError(null);
+        }}
         aria-pressed={active}
       >
         {proteinImage ? (
@@ -111,6 +136,7 @@ function FitarritoHouseCard({
             width={24}
             height={24}
             className={styles.proteinIcon}
+            style={{ pointerEvents: "none" }}
           />
         ) : null}
         <span className={styles.optionLabel}>{protein.name}</span>
@@ -178,17 +204,19 @@ function FitarritoHouseCard({
               orderWindow === "closed" && !isSalad ? styles.addButtonClosed : ""
             }`}
             onClick={() => void handleAddToCart()}
-            disabled={
-              (orderWindow === "closed" && !isSalad) ||
-              (!isSalad &&
-                availableProteins.length > 0 &&
-                !selectedProteinName)
-            }
+            disabled={orderWindow === "closed" && !isSalad}
           >
             {orderWindow === "closed" && !isSalad
               ? "Ordering Closed"
-              : "Add to Cart"}
+              : !isSalad &&
+                  availableProteins.length > 0 &&
+                  !selectedProteinName
+                ? "Select protein"
+                : "Add to Cart"}
           </button>
+          {actionError ? (
+            <p className={styles.addError}>{actionError}</p>
+          ) : null}
         </div>
       </div>
     </article>

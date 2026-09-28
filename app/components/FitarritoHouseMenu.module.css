@@ -210,6 +210,8 @@
 
 .proteinIcon {
   object-fit: contain;
+  pointer-events: none;
+  user-select: none;
 }
 
 .optionLabel {
@@ -273,6 +275,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .proteinChip:hover {
@@ -312,6 +315,14 @@
 .addButtonClosed {
   background: #6b7280;
   opacity: 1;
+}
+
+.addError {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
 }
 
 .comingSoon {

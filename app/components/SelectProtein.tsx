@@ -52,6 +52,7 @@ export default function SelectProtein({
     sizeVariants[0]?.name ?? "",
   );
   const [selectedProteinName, setSelectedProteinName] = useState<string>("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const pricing = calculateMenuItemPricing(
     item,
@@ -67,23 +68,44 @@ export default function SelectProtein({
 
   const handleAddToCart = async () => {
     if (orderWindow === "closed") return;
-    if (hasSizeVariants && !selectedSizeName) return;
-    if (!simple && availableProteins.length > 0 && !selectedProteinName) return;
+    if (hasSizeVariants && !selectedSizeName) {
+      setActionError("Please select a size.");
+      return;
+    }
+    if (!simple && availableProteins.length > 0 && !selectedProteinName) {
+      setActionError("Please select a protein.");
+      return;
+    }
 
-    const session = getCartSession();
+    setActionError(null);
 
-    await dispatch(
-      addToCart({
-        sessionId: session.sessionId,
-        menuItemId: String(item.id),
-        selectedProtein:
-          selectedProteinName || availableProteins[0]?.name || "Default",
-        selectedSize: hasSizeVariants ? selectedSizeName : undefined,
-        quantity: 1,
-      }),
-    );
+    try {
+      const session = getCartSession();
+      const result = await dispatch(
+        addToCart({
+          sessionId: session.sessionId,
+          menuItemId: String(item.id),
+          selectedProtein:
+            selectedProteinName || availableProteins[0]?.name || "Default",
+          selectedSize: hasSizeVariants ? selectedSizeName : undefined,
+          quantity: 1,
+        }),
+      );
 
-    onAddedToCart?.();
+      if (addToCart.fulfilled.match(result)) {
+        onAddedToCart?.();
+        return;
+      }
+
+      setActionError(
+        (typeof result.payload === "string" && result.payload) ||
+          "Could not add item to cart.",
+      );
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Could not add item to cart.",
+      );
+    }
   };
 
   const renderSizeCard = (size: SizeVariant) => {
@@ -117,7 +139,10 @@ export default function SelectProtein({
         key={protein.name}
         type="button"
         className={`${styles.proteinChip} ${active ? styles.proteinChipActive : ""}`}
-        onClick={() => setSelectedProteinName(protein.name)}
+        onClick={() => {
+          setSelectedProteinName(protein.name);
+          setActionError(null);
+        }}
         aria-pressed={active}
       >
         {proteinImage ? (
@@ -127,6 +152,7 @@ export default function SelectProtein({
             width={22}
             height={22}
             className={styles.proteinChipIcon}
+            style={{ pointerEvents: "none" }}
           />
         ) : null}
         <span>{protein.name}</span>
@@ -166,7 +192,10 @@ export default function SelectProtein({
           <div className={styles.proteinSelectWrap}>
             <select
               value={selectedProteinName}
-              onChange={(event) => setSelectedProteinName(event.target.value)}
+              onChange={(event) => {
+                setSelectedProteinName(event.target.value);
+                setActionError(null);
+              }}
               className={
                 selectedProteinName
                   ? styles.proteinSelect
@@ -207,17 +236,18 @@ export default function SelectProtein({
             orderWindow === "closed" ? styles.addToCartButtonClosed : ""
           }`}
           onClick={() => void handleAddToCart()}
-          disabled={
-            orderWindow === "closed" ||
-            (hasSizeVariants && !selectedSizeName) ||
-            (!simple &&
-              availableProteins.length > 0 &&
-              !selectedProteinName)
-          }
+          disabled={orderWindow === "closed"}
         >
           {orderWindow === "closed" ? null : <FaShoppingCart aria-hidden />}
-          {orderWindow === "closed" ? "Ordering Closed" : "Add to Cart"}
+          {orderWindow === "closed"
+            ? "Ordering Closed"
+            : !simple && availableProteins.length > 0 && !selectedProteinName
+              ? "Select protein"
+              : "Add to Cart"}
         </button>
+        {actionError ? (
+          <p className={styles.addToCartError}>{actionError}</p>
+        ) : null}
       </div>
     </section>
   );

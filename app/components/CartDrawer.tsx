@@ -26,6 +26,7 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
   const router = useRouter();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const totalAmt = useAppSelector((state) => state.cart.totalAmt);
+  const cartError = useAppSelector((state) => state.cart.error);
   const dispatch = useAppDispatch();
   const cartSession = getCartSession();
 
@@ -55,7 +56,7 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
       <div
         className={clsx(
           styles.drawerContainer,
-          isOpen ? styles.drawerOpen : styles.drawerClosed,
+          isOpen ? styles.open : styles.closed,
         )}
       >
         <IoCloseSharp
@@ -67,6 +68,9 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
           <div className={styles.emptyCartContainer}>
             <Image src={cartEmpty} alt="Empty cart" width={180} height={180} />
             <p className={styles.emptyText}>Your cart is empty</p>
+            {cartError ? (
+              <p className={styles.emptyText}>{cartError}</p>
+            ) : null}
           </div>
         ) : (
           <ul className={styles.cartItemList}>

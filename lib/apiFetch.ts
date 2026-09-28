@@ -1,15 +1,31 @@
 const DEFAULT_TIMEOUT_MS = 15_000;
 
+function createTimeoutSignal(timeoutMs: number) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(timeoutMs);
+  }
+
+  const controller = new AbortController();
+  globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  return controller.signal;
+}
+
 export async function fetchJson<T>(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<T> {
   const response = await fetch(input, {
     ...init,
-    signal: init?.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    signal: init?.signal ?? createTimeoutSignal(DEFAULT_TIMEOUT_MS),
   });
 
-  const data = await response.json();
+  let data: unknown = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
 
   if (!response.ok) {
     const message =

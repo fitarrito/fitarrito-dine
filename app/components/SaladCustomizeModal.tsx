@@ -136,7 +136,7 @@ export default function SaladCustomizeModal({
     try {
       const session = getCartSession();
 
-      await dispatch(
+      const result = await dispatch(
         addToCart({
           sessionId: session.sessionId,
           menuItemId: String(item.id),
@@ -149,6 +149,10 @@ export default function SaladCustomizeModal({
           quantity: 1,
         }),
       );
+
+      if (!addToCart.fulfilled.match(result)) {
+        return;
+      }
 
       onClose();
       onAddedToCart?.();
@@ -204,6 +208,7 @@ export default function SaladCustomizeModal({
             width={28}
             height={28}
             className={styles.proteinIcon}
+            style={{ pointerEvents: "none" }}
           />
         ) : null}
         <span className={styles.choiceName}>{protein.name}</span>

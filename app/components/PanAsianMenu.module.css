@@ -127,6 +127,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  min-height: 44px;
   padding: 0.35rem 0.65rem;
   border: 1px solid #d1d5db;
   border-radius: 999px;
@@ -134,6 +135,7 @@
   color: #374151;
   font-size: 0.78rem;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .proteinButtonActive {
@@ -145,6 +147,8 @@
 
 .proteinIcon {
   object-fit: contain;
+  pointer-events: none;
+  user-select: none;
 }
 
 .proteinLabelText {
