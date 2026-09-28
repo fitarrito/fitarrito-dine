@@ -1,17 +1,56 @@
 export type OrderWindow = "lunch" | "dinner" | "closed";
 
-export const IGNORE_ORDER_CUTOFF_FOR_TESTING = false;
+type CutoffTime = {
+  hour: number;
+  minute: number;
+};
 
-export const ORDER_CUTOFFS = {
+type OrderCutoffs = {
+  lunch: CutoffTime;
+  dinner: CutoffTime;
+};
+
+// Temporary: uses TEST_ORDER_CUTOFFS (8 PM dinner) instead of production cutoffs.
+export const IGNORE_ORDER_CUTOFF_FOR_TESTING = true;
+
+export const ORDER_CUTOFFS: OrderCutoffs = {
   lunch: {
     hour: 10,
     minute: 0,
   },
   dinner: {
-    hour: 16,
+    hour: 18,
     minute: 0,
   },
 };
+
+export const TEST_ORDER_CUTOFFS: OrderCutoffs = {
+  lunch: {
+    hour: 10,
+    minute: 0,
+  },
+  dinner: {
+    hour: 20,
+    minute: 0,
+  },
+};
+
+function getActiveCutoffs(): OrderCutoffs {
+  return IGNORE_ORDER_CUTOFF_FOR_TESTING ? TEST_ORDER_CUTOFFS : ORDER_CUTOFFS;
+}
+
+function formatCutoffTime({ hour, minute }: CutoffTime) {
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  const minuteText =
+    minute === 0 ? ":00" : `:${String(minute).padStart(2, "0")}`;
+
+  return `${hour12}${minuteText} ${period}`;
+}
+
+export function getDinnerCutoffLabel() {
+  return formatCutoffTime(getActiveCutoffs().dinner);
+}
 
 function toMinutes(hour: number, minute: number) {
   return hour * 60 + minute;
@@ -30,19 +69,10 @@ function getChennaiMinutes(now: Date) {
 }
 
 export function getOrderWindow(now = new Date()): OrderWindow {
-  if (IGNORE_ORDER_CUTOFF_FOR_TESTING) {
-    return "dinner";
-  }
-
+  const cutoffs = getActiveCutoffs();
   const totalMinutes = getChennaiMinutes(now);
-  const lunchCutoff = toMinutes(
-    ORDER_CUTOFFS.lunch.hour,
-    ORDER_CUTOFFS.lunch.minute,
-  );
-  const dinnerCutoff = toMinutes(
-    ORDER_CUTOFFS.dinner.hour,
-    ORDER_CUTOFFS.dinner.minute,
-  );
+  const lunchCutoff = toMinutes(cutoffs.lunch.hour, cutoffs.lunch.minute);
+  const dinnerCutoff = toMinutes(cutoffs.dinner.hour, cutoffs.dinner.minute);
 
   if (totalMinutes < lunchCutoff) {
     return "lunch";

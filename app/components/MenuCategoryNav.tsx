@@ -21,7 +21,11 @@ export const DINE_IN_CATEGORIES: DineInCategory[] = [
     label: "Pan Asian",
     imageUrl: "/images/koreanIcon.png",
   },
-  { id: "drinks", label: "Drinks" },
+  {
+    id: "fitarrito-house",
+    label: "Fitarrito House",
+    imageUrl: "/images/fitarrito.svg",
+  },
 ];
 
 export const DEFAULT_MENU_CATEGORY = "mexican";

@@ -120,7 +120,8 @@
   pointer-events: none;
 }
 
-.inputWrap input {
+.inputWrap input,
+.inputWrap select {
   width: 100%;
   padding: 0.75rem 0.85rem 0.75rem 2.35rem;
   border: 1px solid #d1d5db;
@@ -130,7 +131,27 @@
   background: #fff;
 }
 
+.inputWrap select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  padding-right: 2.25rem;
+}
+
+.selectPlaceholder {
+  color: #9ca3af;
+}
+
+.readOnlyInput {
+  background: #f9fafb;
+  color: #374151;
+  cursor: not-allowed;
+}
+
 .inputWrap input:focus,
+.inputWrap select:focus,
 .textarea:focus,
 .instructionsTextarea:focus {
   outline: none;

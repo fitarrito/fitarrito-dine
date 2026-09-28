@@ -9,6 +9,8 @@ import {
   enrichCartItems,
   type CartItemRecord,
 } from "@lib/cartItemsServer";
+import { calculateMenuItemPricing, findSizeVariant } from "@lib/menuPricing";
+import { getProteinNameForPricing } from "@lib/fitarritoHouseMenu";
 import type { menuItem, ProteinVariant } from "@/types/types";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +71,7 @@ export async function POST(request: Request) {
     const sessionId = body.sessionId ?? body.session_id;
     const menuItemId = body.menuItemId ?? body.menu_item_id;
     const selectedProtein = body.selectedProtein ?? body.selected_protein;
+    const selectedSize = body.selectedSize ?? body.selected_size ?? null;
     const quantity = body.quantity ?? 1;
 
     if (!sessionId) {
@@ -101,7 +104,7 @@ export async function POST(request: Request) {
       supabaseAdmin
         .from("MenuItem")
         .select(
-          "id, title, price, imageUrl, proteinVariants, order_type, cuisine",
+          "id, title, price, imageUrl, proteinVariants, sizeVariants, order_type, cuisine",
         )
         .eq("id", menuItemId)
         .single(),
@@ -129,32 +132,63 @@ export async function POST(request: Request) {
       ? (menuItemRow.proteinVariants as ProteinVariant[])
       : [];
 
+    const hasSizeVariants =
+      Array.isArray(menuItemRow.sizeVariants) &&
+      menuItemRow.sizeVariants.length > 0;
+
+    if (hasSizeVariants && !selectedSize) {
+      return NextResponse.json(
+        { error: "Please select a size." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      hasSizeVariants &&
+      !findSizeVariant(menuItemRow as menuItem, selectedSize)
+    ) {
+      return NextResponse.json(
+        { error: `Size "${selectedSize}" is not available for this item.` },
+        { status: 400 },
+      );
+    }
+
+    const proteinName = getProteinNameForPricing(selectedProtein) ?? selectedProtein;
     const protein = proteinVariants.find(
       (item) =>
-        item.name === selectedProtein &&
+        item.name === proteinName &&
         item.name.toLowerCase() !== "mutton",
     );
 
     if (!protein) {
       return NextResponse.json(
         {
-          error: `Protein "${selectedProtein}" is not available for this item.`,
+          error: `Protein "${proteinName}" is not available for this item.`,
         },
         { status: 400 },
       );
     }
 
-    const basePrice = Number(menuItemRow.price);
-    const proteinPrice = Number(protein.price ?? 0);
-    const unitPrice = basePrice + proteinPrice;
+    const pricing = calculateMenuItemPricing(
+      menuItemRow as menuItem,
+      selectedProtein,
+      selectedSize,
+    );
+    const { base_price: basePrice, protein_price: proteinPrice, price: unitPrice } =
+      pricing;
 
-    const { data: existingItem, error: existingError } = await supabaseAdmin
+    let existingQuery = supabaseAdmin
       .from("CartItems")
       .select("id, quantity")
       .eq("session_id", sessionId)
       .eq("menu_item_id", String(menuItemRow.id))
-      .eq("selected_protein", selectedProtein)
-      .maybeSingle();
+      .eq("selected_protein", selectedProtein);
+
+    if (selectedSize) {
+      existingQuery = existingQuery.eq("selected_size", selectedSize);
+    }
+
+    const { data: existingItem, error: existingError } = await existingQuery.maybeSingle();
 
     if (existingError) {
       console.error("Existing cart lookup error:", existingError);
@@ -174,6 +208,7 @@ export async function POST(request: Request) {
           quantity: newQuantity,
           title: menuItemRow.title,
           image_url: menuItemRow.imageUrl,
+          selected_size: selectedSize,
           base_price: basePrice,
           protein_price: proteinPrice,
           price: unitPrice,
@@ -210,6 +245,7 @@ export async function POST(request: Request) {
         title: menuItemRow.title,
         image_url: menuItemRow.imageUrl,
         selected_protein: selectedProtein,
+        selected_size: selectedSize,
         quantity,
         base_price: basePrice,
         protein_price: proteinPrice,

@@ -5,6 +5,7 @@ import {
   withTimeout,
 } from "@lib/getSupabaseServer";
 import { normalizeCuisineQuery } from "@lib/menuCuisine";
+import { FITARRITO_HOUSE_TITLES } from "@lib/fitarritoHouseMenu";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,31 @@ export async function GET(request: Request) {
 
   try {
     const supabase = getSupabaseServerClient();
+
+    if (cuisine === "Fitarrito House") {
+      const { data: cuisineRows, error: cuisineError } = await withTimeout(
+        supabase.from("MenuItem").select("*").eq("cuisine", cuisine),
+        10_000,
+        "Menu fetch",
+      );
+
+      if (cuisineError) throw cuisineError;
+
+      if (cuisineRows && cuisineRows.length > 0) {
+        return NextResponse.json(cuisineRows);
+      }
+
+      const { data: titleRows, error: titleError } = await withTimeout(
+        supabase.from("MenuItem").select("*").in("title", FITARRITO_HOUSE_TITLES),
+        10_000,
+        "Menu fetch",
+      );
+
+      if (titleError) throw titleError;
+
+      return NextResponse.json(titleRows ?? []);
+    }
+
     let query = supabase.from("MenuItem").select("*");
 
     if (cuisine) {

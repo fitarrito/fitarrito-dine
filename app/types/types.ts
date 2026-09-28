@@ -5,6 +5,25 @@ export interface ProteinVariant {
   price: number | string;
 }
 
+export interface SizeVariant {
+  name: string;
+  price: number | string;
+  description?: string;
+}
+
+export interface SaladVariant {
+  name: string;
+  price?: number | string;
+  description?: string;
+  imageUrl?: string;
+}
+
+export interface ToppingVariant {
+  name: string;
+  price?: number | string;
+  imageUrl?: string;
+}
+
 export interface menuItem {
   title: string;
   categoryId: number;
@@ -20,8 +39,11 @@ export interface menuItem {
   cuisine?: string;
   order_type?: string;
   proteinVariants?: ProteinVariant[];
+  sizeVariants?: SizeVariant[];
+  saladVariants?: SaladVariant[];
+  toppingVariants?: ToppingVariant[];
   selectedProtein?: string;
-  selectedSize?: "regular" | "jumbo";
+  selectedSize?: string;
 }
 
 export interface addOnsItem {

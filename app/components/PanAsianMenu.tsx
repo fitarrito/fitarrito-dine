@@ -7,7 +7,7 @@ import { addToCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { useAppDispatch } from "@lib/hooks";
 import { useOrderWindow } from "@lib/useOrderWindow";
-import { resolveMenuItemImageUrl } from "@lib/menuImages";
+import { resolveMenuItemImageUrl, resolveProteinImageUrl } from "@lib/menuImages";
 import type { menuItem, ProteinVariant } from "@/types/types";
 import styles from "./PanAsianMenu.module.css";
 
@@ -78,6 +78,7 @@ function PanAsianMenuCard({
   const renderProteinButton = (protein: ProteinVariant) => {
     const active = selectedProteinName === protein.name;
     const addonPrice = parseFloat(String(protein.price || 0));
+    const proteinImage = resolveProteinImageUrl(protein.imageUrl);
 
     return (
       <button
@@ -87,9 +88,9 @@ function PanAsianMenuCard({
         onClick={() => setSelectedProteinName(protein.name)}
         aria-pressed={active}
       >
-        {protein.imageUrl ? (
+        {proteinImage ? (
           <Image
-            src={protein.imageUrl}
+            src={proteinImage}
             alt=""
             width={18}
             height={18}

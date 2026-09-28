@@ -15,6 +15,8 @@ import {
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import { removeCartItem } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
+import { getDinnerCutoffLabel } from "@lib/orderCutoff";
+import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import styles from "./OrderSummaryPanel.module.css";
 
 type OrderSummaryPanelProps = {
@@ -32,6 +34,7 @@ export default function OrderSummaryPanel({
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const subtotal = useAppSelector((state) => state.cart.totalAmt);
   const totalAmount = subtotal;
+  const dinnerCutoff = getDinnerCutoffLabel();
 
   return (
     <aside className={styles.panel}>
@@ -51,6 +54,7 @@ export default function OrderSummaryPanel({
           const cartItemId =
             item.id ||
             `${item.title}-${item.selected_protein || "default"}-${item.selected_size || "regular"}`;
+          const customization = getCartItemCustomization(item);
 
           return (
             <li key={cartItemId} className={styles.itemRow}>
@@ -64,9 +68,12 @@ export default function OrderSummaryPanel({
               </div>
 
               <div className={styles.itemDetails}>
-                <p className={styles.itemTitle}>{item.title}</p>
-                {item.selected_protein ? (
-                  <p className={styles.itemMeta}>Protein: {item.selected_protein}</p>
+                <p className={styles.itemTitle}>{customization.title}</p>
+                {customization.protein ? (
+                  <p className={styles.itemMeta}>Protein: {customization.protein}</p>
+                ) : null}
+                {customization.toppings ? (
+                  <p className={styles.itemMeta}>Toppings: {customization.toppings}</p>
                 ) : null}
                 <p className={styles.itemMeta}>Qty: {item.quantity}</p>
               </div>
@@ -137,7 +144,7 @@ export default function OrderSummaryPanel({
             <div>
               <p className={styles.windowTitle}>Dinner Orders</p>
               <p className={styles.windowHint}>
-                Place your order before <strong>4:00 PM</strong>
+                Place your order before <strong>{dinnerCutoff}</strong>
               </p>
             </div>
           </div>

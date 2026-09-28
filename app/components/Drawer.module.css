@@ -95,6 +95,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
+  .itemSubtitle {
+    margin: 0.1rem 0 0;
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
   
   .itemPrice {
     color: #6b7280;

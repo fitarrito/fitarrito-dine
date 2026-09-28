@@ -2,10 +2,12 @@
 
 import { FaLock, FaMoon, FaSun } from "react-icons/fa";
 import { useOrderWindow } from "@lib/useOrderWindow";
+import { getDinnerCutoffLabel } from "@lib/orderCutoff";
 import styles from "./OnDemandOrderingBanner.module.css";
 
 export default function OnDemandOrderingBanner() {
   const orderWindow = useOrderWindow();
+  const dinnerCutoff = getDinnerCutoffLabel();
 
   return (
     <section className={styles.banner} aria-label="On-demand ordering information">
@@ -43,7 +45,7 @@ export default function OnDemandOrderingBanner() {
           <div>
             <p className={styles.statusTitle}>Dinner Orders</p>
             <p className={styles.statusMessage}>
-              Place your order before <strong>4:00 PM</strong>
+              Place your order before <strong>{dinnerCutoff}</strong>
             </p>
           </div>
         </div>
@@ -58,7 +60,7 @@ export default function OnDemandOrderingBanner() {
             <p className={styles.statusTitle}>Today&apos;s ordering is closed</p>
             <p className={styles.statusMessage}>
               Lunch orders close at <strong>10:00 AM</strong>. Dinner orders close
-              at <strong>4:00 PM</strong>.
+              at <strong>{dinnerCutoff}</strong>.
             </p>
           </div>
         </div>

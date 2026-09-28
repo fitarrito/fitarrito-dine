@@ -11,6 +11,7 @@ import {
   removeCartItem,
 } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
+import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import Image from "next/image";
 import Button from "./ui/Button";
 import styles from "./Drawer.module.css";
@@ -70,29 +71,16 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
         ) : (
           <ul className={styles.cartItemList}>
             {cartItems.map((item) => {
+              const customization = getCartItemCustomization(item);
               const cartItemId =
                 item.id ||
                 `${item.title}-${item.selected_protein || "default"}-${
                   item.selected_size || "regular"
                 }`;
 
-              const displayTitle = item.selected_protein
-                ? `${item.title} (${item.selected_protein}${
-                    item.selected_size && item.selected_size !== "regular"
-                      ? ` - ${item.selected_size}`
-                      : ""
-                  })`
-                : item.title;
-
               return (
                 <li key={cartItemId} className={styles.cartItem}>
                   <div className={styles.itemWrapper}>
-                    {/* <img
-                      src={item.imagesrc.src}
-                      alt={item.title}
-                      className={styles.itemImage}
-                    /> */}
-
                     <div className={styles.itemInfo}>
                       <div className={styles.itemImageWrapper}>
                         <Image
@@ -102,7 +90,17 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
                           className={styles.itemImage}
                         />
                       </div>
-                      <p className={styles.itemTitle}>{displayTitle}</p>
+                      <p className={styles.itemTitle}>{customization.title}</p>
+                      {customization.protein ? (
+                        <p className={styles.itemSubtitle}>
+                          {customization.protein}
+                        </p>
+                      ) : null}
+                      {customization.toppings ? (
+                        <p className={styles.itemSubtitle}>
+                          {customization.toppings}
+                        </p>
+                      ) : null}
                       <span className={styles.itemPrice}>
                         ₹{item.price * item.quantity}
                       </span>

@@ -1,6 +1,8 @@
 export type OrderWhatsAppItem = {
   item_name: string;
   selected_protein?: string | null;
+  selected_size?: string | null;
+  selected_toppings?: string | null;
   quantity: number;
   unit_price: number;
 };
@@ -43,9 +45,14 @@ export function formatOrderWhatsAppMessage(
   const itemLines = input.items
     .map((item) => {
       const lineTotal = item.unit_price * item.quantity;
-      const proteinLine = item.selected_protein
-        ? `\n${item.selected_protein}`
-        : "";
+      const details = [
+        item.selected_protein,
+        item.selected_size ? `Size: ${item.selected_size}` : null,
+        item.selected_toppings ? `Toppings: ${item.selected_toppings}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const proteinLine = details ? `\n${details}` : "";
 
       return `${item.quantity} × ${item.item_name}${proteinLine}\n₹${lineTotal}`;
     })

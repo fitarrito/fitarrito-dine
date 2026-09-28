@@ -1,4 +1,5 @@
-import type { menuItem, ProteinVariant } from "@/types/types";
+import type { menuItem } from "@/types/types";
+import { calculateMenuItemPricing } from "@lib/menuPricing";
 
 export type CartItemRecord = {
   id: string;
@@ -24,34 +25,6 @@ export type EnrichedCartItem = CartItemRecord & {
   protein_price: number;
 };
 
-function findProteinVariant(
-  menuItemRow: menuItem,
-  selectedProtein?: string | null,
-): ProteinVariant | undefined {
-  if (!selectedProtein) return undefined;
-
-  return menuItemRow.proteinVariants?.find(
-    (protein) =>
-      protein.name.toLowerCase() === selectedProtein.toLowerCase() &&
-      protein.name.toLowerCase() !== "mutton",
-  );
-}
-
-export function calculateCartItemPricing(
-  menuItemRow: menuItem,
-  selectedProtein?: string | null,
-) {
-  const basePrice = parseFloat(String(menuItemRow.price || 0));
-  const proteinVariant = findProteinVariant(menuItemRow, selectedProtein);
-  const proteinPrice = parseFloat(String(proteinVariant?.price || 0));
-
-  return {
-    base_price: basePrice,
-    protein_price: proteinPrice,
-    price: basePrice + proteinPrice,
-  };
-}
-
 export function enrichCartItem(
   row: CartItemRecord,
   menuItemRow: menuItem | null | undefined,
@@ -69,7 +42,11 @@ export function enrichCartItem(
     };
   }
 
-  const pricing = calculateCartItemPricing(menuItemRow, row.selected_protein);
+  const pricing = calculateMenuItemPricing(
+    menuItemRow,
+    row.selected_protein,
+    row.selected_size,
+  );
 
   return {
     ...row,

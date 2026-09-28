@@ -54,7 +54,9 @@ export default function MenuItemDetails({
               sizes="(max-width: 768px) 100vw, 420px"
               priority
             />
-            <p className={styles.imageTagline}>Fresh Wholesome Delicious</p>
+            <p className={styles.imageTagline}>
+              Fresh • Wholesome • Delicious
+            </p>
           </div>
 
           <ul className={styles.featureList}>

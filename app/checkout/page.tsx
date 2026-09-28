@@ -16,7 +16,9 @@ import OrderSummaryPanel from "@/components/checkout/OrderSummaryPanel";
 import { fetchCart, clearCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { fetchJson } from "@lib/apiFetch";
+import { DELIVERY_AREAS, getDeliveryArea } from "@lib/deliveryAreas";
 import { normalizeIndianPhone } from "@lib/normalizePhone";
+import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import {
   createWhatsAppOrderLink,
   formatOrderWhatsAppMessage,
@@ -41,7 +43,7 @@ const INITIAL_FORM: DeliveryForm = {
   address: "",
   area: "",
   landmark: "",
-  city: "",
+  city: "Chennai",
   pincode: "",
   deliveryInstructions: "",
 };
@@ -73,6 +75,17 @@ export default function CheckoutPage() {
       setForm((current) => ({ ...current, [field]: event.target.value }));
       setFormError(null);
     };
+
+  const updateDeliveryArea = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedArea = getDeliveryArea(event.target.value);
+
+    setForm((current) => ({
+      ...current,
+      area: selectedArea?.name ?? "",
+      pincode: selectedArea?.pincode ?? "",
+    }));
+    setFormError(null);
+  };
 
   const updateMobileNumber = (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -139,12 +152,17 @@ export default function CheckoutPage() {
         orderId: result.orderId,
         customerName: form.fullName.trim(),
         customerPhone,
-        items: cartItems.map((item) => ({
-          item_name: item.title,
-          selected_protein: item.selected_protein,
-          quantity: Number(item.quantity),
-          unit_price: Number(item.price),
-        })),
+        items: cartItems.map((item) => {
+          const customization = getCartItemCustomization(item);
+
+          return {
+            item_name: customization.title,
+            selected_protein: customization.protein,
+            selected_toppings: customization.toppings,
+            quantity: Number(item.quantity),
+            unit_price: Number(item.price),
+          };
+        }),
         subtotal,
         deliveryCharge,
         total: result.total,
@@ -239,7 +257,7 @@ export default function CheckoutPage() {
                     autoComplete="tel-national"
                     value={form.mobileNumber}
                     onChange={updateMobileNumber}
-                    placeholder="98765 43210"
+                    placeholder="Enter mobile number"
                     maxLength={10}
                     required
                   />
@@ -273,36 +291,27 @@ export default function CheckoutPage() {
               />
             </label>
 
-            <div className={styles.fieldGridTwo}>
-              <label className={styles.field}>
-                <span className={styles.label}>
-                  Area / Locality <span className={styles.required}>*</span>
-                </span>
-                <span className={styles.inputWrap}>
-                  <FaMapMarkerAlt className={styles.inputIcon} aria-hidden />
-                  <input
-                    type="text"
-                    value={form.area}
-                    onChange={updateField("area")}
-                    placeholder="Valasaravakkam"
-                    required
-                  />
-                </span>
-              </label>
-
-              <label className={styles.field}>
-                <span className={styles.label}>Landmark (Optional)</span>
-                <span className={styles.inputWrap}>
-                  <FaBuilding className={styles.inputIcon} aria-hidden />
-                  <input
-                    type="text"
-                    value={form.landmark}
-                    onChange={updateField("landmark")}
-                    placeholder="Near Lakshmi School"
-                  />
-                </span>
-              </label>
-            </div>
+            <label className={styles.field}>
+              <span className={styles.label}>
+                Delivery Location <span className={styles.required}>*</span>
+              </span>
+              <span className={styles.inputWrap}>
+                <FaMapMarkerAlt className={styles.inputIcon} aria-hidden />
+                <select
+                  value={form.area}
+                  onChange={updateDeliveryArea}
+                  required
+                  className={form.area ? styles.select : styles.selectPlaceholder}
+                >
+                  <option value="">Select your area</option>
+                  {DELIVERY_AREAS.map((item) => (
+                    <option key={item.name} value={item.name}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            </label>
 
             <div className={styles.fieldGridTwo}>
               <label className={styles.field}>
@@ -330,13 +339,27 @@ export default function CheckoutPage() {
                   <input
                     type="text"
                     value={form.pincode}
-                    onChange={updateField("pincode")}
-                    placeholder="600087"
+                    readOnly
+                    placeholder="Select delivery location"
                     required
+                    className={styles.readOnlyInput}
                   />
                 </span>
               </label>
             </div>
+
+            <label className={styles.field}>
+              <span className={styles.label}>Landmark (Optional)</span>
+              <span className={styles.inputWrap}>
+                <FaBuilding className={styles.inputIcon} aria-hidden />
+                <input
+                  type="text"
+                  value={form.landmark}
+                  onChange={updateField("landmark")}
+                  placeholder="Near Lakshmi School"
+                />
+              </span>
+            </label>
           </section>
 
           <section className={styles.instructionsSection}>

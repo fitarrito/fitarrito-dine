@@ -16,6 +16,8 @@ import MenuCategoryNav, {
 } from "@/components/MenuCategoryNav";
 import OnDemandOrderingBanner from "@/components/OnDemandOrderingBanner";
 import PanAsianMenu from "@/components/PanAsianMenu";
+import FitarritoHouseMenu from "@/components/FitarritoHouseMenu";
+import { FITARRITO_HOUSE_ITEMS, FITARRITO_HOUSE_TITLES } from "@lib/fitarritoHouseMenu";
 import { cuisineSlugFromNavCategory } from "@lib/menuCuisine";
 
 type FoodCategory = {
@@ -61,13 +63,36 @@ function MenuPageContent() {
     activeSection === "dine-in" && activeMenuCategory === "mexican";
   const showPanAsianMenu =
     activeSection === "dine-in" && activeMenuCategory === "pan-asian";
+  const showFitarritoHouseMenu =
+    activeSection === "dine-in" && activeMenuCategory === "fitarrito-house";
   const showComingSoon =
     activeSection === "order-now" ||
     (activeSection === "dine-in" &&
       activeMenuCategory !== "mexican" &&
-      activeMenuCategory !== "pan-asian");
+      activeMenuCategory !== "pan-asian" &&
+      activeMenuCategory !== "fitarrito-house");
   const showOnDemandBanner = activeSection === "dine-in";
   const needsMenuApiData = Boolean(activeCuisine);
+
+  const fitarritoHouseItems = useMemo(() => {
+    if (!showFitarritoHouseMenu) return [];
+
+    const apiItems = menuItems.filter((item: menuItem) => {
+      const cuisineName = item.cuisine?.toLowerCase() ?? "";
+      const title = item.title.trim().toLowerCase();
+
+      return (
+        cuisineName === "fitarrito house" ||
+        cuisineName === "fitarrito-house" ||
+        ((!cuisineName || cuisineName === "null") &&
+          FITARRITO_HOUSE_TITLES.some(
+            (houseTitle) => houseTitle.toLowerCase() === title,
+          ))
+      );
+    });
+
+    return apiItems.length > 0 ? apiItems : FITARRITO_HOUSE_ITEMS;
+  }, [menuItems, showFitarritoHouseMenu]);
 
   const filteredMenuItems = useMemo(() => {
     if (!showMexicanMenu || activeFoodCategoryId == null) return [];
@@ -134,6 +159,15 @@ function MenuPageContent() {
       return (
         <PanAsianMenu
           items={menuItems}
+          onAddedToCart={() => setIsDrawerOpen(true)}
+        />
+      );
+    }
+
+    if (showFitarritoHouseMenu) {
+      return (
+        <FitarritoHouseMenu
+          items={fitarritoHouseItems}
           onAddedToCart={() => setIsDrawerOpen(true)}
         />
       );

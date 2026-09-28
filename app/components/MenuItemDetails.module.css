@@ -120,7 +120,7 @@
   margin: 0;
   font-size: clamp(1.75rem, 3vw, 2.25rem);
   font-weight: 800;
-  color: var(--customTheme);
+  color: #111827;
   line-height: 1.1;
 }
 

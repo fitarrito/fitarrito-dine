@@ -12,6 +12,7 @@ type AddToCartPayload = {
   sessionId: string;
   menuItemId: string;
   selectedProtein: string;
+  selectedSize?: string;
   quantity?: number;
 };
 
@@ -117,6 +118,7 @@ export const addToCart = createAsyncThunk(
             sessionId: payload.sessionId,
             menuItemId: payload.menuItemId,
             selectedProtein: payload.selectedProtein,
+            selectedSize: payload.selectedSize,
             quantity: payload.quantity ?? 1,
           }),
         },

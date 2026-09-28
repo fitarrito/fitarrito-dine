@@ -8,6 +8,7 @@ import {
   isValidIndianMobile,
   normalizeIndianPhone,
 } from "@lib/normalizePhone";
+import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 
 export const dynamic = "force-dynamic";
 
@@ -161,16 +162,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const orderItems = cartItems.map((item) => ({
-      order_id: order.id,
-      menu_item_id: item.menu_item_id,
-      item_name: item.title,
-      selected_protein: item.selected_protein,
-      base_price: Number(item.base_price ?? 0),
-      protein_price: Number(item.protein_price ?? 0),
-      unit_price: Number(item.price),
-      quantity: Number(item.quantity),
-    }));
+    const orderItems = cartItems.map((item) => {
+      const customization = getCartItemCustomization({
+        title: item.title,
+        selected_protein: item.selected_protein,
+        selected_size: item.selected_size,
+      });
+      const proteinDetails = [
+        customization.protein,
+        customization.toppings ? `Toppings: ${customization.toppings}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      return {
+        order_id: order.id,
+        menu_item_id: item.menu_item_id,
+        item_name: customization.title,
+        selected_protein: proteinDetails || item.selected_protein,
+        base_price: Number(item.base_price ?? 0),
+        protein_price: Number(item.protein_price ?? 0),
+        unit_price: Number(item.price),
+        quantity: Number(item.quantity),
+      };
+    });
 
     const { error: orderItemsError } = await supabaseAdmin
       .from("order_items")
