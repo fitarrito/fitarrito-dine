@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { FaArrowRight } from "react-icons/fa";
 import { IoCloseSharp, IoTrash } from "react-icons/io5";
 import cartEmpty from "../../public/images/CartEmpty.svg";
 import { useAppSelector, useAppDispatch } from "@lib/hooks";
@@ -29,6 +30,7 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
   const cartError = useAppSelector((state) => state.cart.error);
   const dispatch = useAppDispatch();
   const cartSession = getCartSession();
+  const itemCount = cartItems.reduce((sum, item) => sum + Number(item.quantity), 0);
 
   useEffect(() => {
     if (isOpen) {
@@ -58,11 +60,30 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
           styles.drawerContainer,
           isOpen ? styles.open : styles.closed,
         )}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-drawer-title"
       >
-        <IoCloseSharp
-          className={styles.closeIcon}
-          onClick={() => setIsOpen(false)}
-        />
+        <div className={styles.handle} aria-hidden />
+
+        <header className={styles.header}>
+          <div>
+            <h2 id="cart-drawer-title" className={styles.headerTitle}>
+              Your Cart
+            </h2>
+            <p className={styles.headerCount}>
+              {itemCount} {itemCount === 1 ? "item" : "items"}
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.closeButton}
+            onClick={() => setIsOpen(false)}
+            aria-label="Close cart"
+          >
+            <IoCloseSharp />
+          </button>
+        </header>
 
         {cartItems.length === 0 ? (
           <div className={styles.emptyCartContainer}>
@@ -84,16 +105,18 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
 
               return (
                 <li key={cartItemId} className={styles.cartItem}>
-                  <div className={styles.itemWrapper}>
-                    <div className={styles.itemInfo}>
-                      <div className={styles.itemImageWrapper}>
-                        <Image
-                          src={item?.image_url ?? "/fallback-image.jpg"}
-                          alt={item?.title ?? "Menu image"}
-                          fill
-                          className={styles.itemImage}
-                        />
-                      </div>
+                  <div className={styles.itemCard}>
+                    <div className={styles.itemImageWrapper}>
+                      <Image
+                        src={item?.image_url ?? "/fallback-image.jpg"}
+                        alt={item?.title ?? "Menu image"}
+                        fill
+                        sizes="64px"
+                        className={styles.itemImage}
+                      />
+                    </div>
+
+                    <div className={styles.itemDetails}>
                       <p className={styles.itemTitle}>{customization.title}</p>
                       {customization.protein ? (
                         <p className={styles.itemSubtitle}>
@@ -105,62 +128,70 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
                           {customization.toppings}
                         </p>
                       ) : null}
-                      <span className={styles.itemPrice}>
+                      <p className={styles.itemPrice}>
                         ₹{item.price * item.quantity}
-                      </span>
+                      </p>
                     </div>
 
-                    <div className={styles.quantityWrapper}>
-                      <button
-                        className={styles.quantityButton}
-                        onClick={() => {
-                          if (item.quantity > 1) {
+                    <div className={styles.itemActions}>
+                      <div className={styles.quantityWrapper}>
+                        <button
+                          type="button"
+                          className={styles.quantityButton}
+                          aria-label={`Decrease ${customization.title} quantity`}
+                          onClick={() => {
+                            if (item.quantity > 1) {
+                              dispatch(
+                                updateCartQuantity({
+                                  id: item.id!,
+                                  quantity: item.quantity - 1,
+                                  session: cartSession,
+                                }),
+                              );
+                            }
+                          }}
+                        >
+                          -
+                        </button>
+
+                        <span className={styles.quantityText}>
+                          {item.quantity}
+                        </span>
+
+                        <button
+                          type="button"
+                          className={styles.quantityButton}
+                          aria-label={`Increase ${customization.title} quantity`}
+                          onClick={() =>
                             dispatch(
                               updateCartQuantity({
                                 id: item.id!,
-                                quantity: item.quantity - 1,
+                                quantity: item.quantity + 1,
                                 session: cartSession,
                               }),
-                            );
+                            )
                           }
-                        }}
-                      >
-                        -
-                      </button>
-
-                      <span className={styles.quantityText}>
-                        {item.quantity}
-                      </span>
+                        >
+                          +
+                        </button>
+                      </div>
 
                       <button
-                        className={styles.quantityButton}
+                        type="button"
+                        className={styles.deleteButton}
+                        aria-label={`Remove ${customization.title}`}
                         onClick={() =>
                           dispatch(
-                            updateCartQuantity({
+                            removeCartItem({
                               id: item.id!,
-                              quantity: item.quantity + 1,
                               session: cartSession,
                             }),
                           )
                         }
                       >
-                        +
+                        <IoTrash />
                       </button>
                     </div>
-
-                    <button
-                      className={styles.deleteButton}
-                      onClick={() =>
-                        dispatch(
-                          removeCartItem({
-                            id: item.id!,
-                            session: cartSession,
-                          }),
-                        )
-                      }
-                    >
-                      <IoTrash />
-                    </button>
                   </div>
                 </li>
               );
@@ -168,22 +199,33 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
           </ul>
         )}
 
-        {cartItems.length > 0 && (
+        {cartItems.length > 0 ? (
           <div className={styles.footer}>
-            <p className={styles.totalText}>Total : ₹{totalAmt}</p>
+            <div className={styles.totals}>
+              <div className={styles.totalRow}>
+                <span>Subtotal ({itemCount} items)</span>
+                <span>₹{totalAmt}</span>
+              </div>
+              <div className={styles.totalAmount}>
+                <span>Total</span>
+                <strong>₹{totalAmt}</strong>
+              </div>
+            </div>
 
             <Button
               variant="primary"
-              className={styles.buttonWidth}
+              fullWidth
+              className={styles.continueButton}
               onClick={() => {
                 setIsOpen(false);
                 router.push("/checkout");
               }}
             >
               Continue
+              <FaArrowRight aria-hidden />
             </Button>
           </div>
-        )}
+        ) : null}
       </div>
     </>
   );
