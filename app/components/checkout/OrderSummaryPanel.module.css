@@ -195,6 +195,18 @@
   color: #374151;
 }
 
+.feeLabel {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.feeHint {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
 .deliveryLabel {
   display: inline-flex;
   align-items: center;

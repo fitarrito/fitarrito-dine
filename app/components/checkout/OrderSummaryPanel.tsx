@@ -18,6 +18,7 @@ import { removeCartItem } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { getDinnerCutoffLabel } from "@lib/orderCutoff";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
+import { applyRazorpayProcessingFee, formatRupees } from "@lib/razorpayFee";
 import styles from "./OrderSummaryPanel.module.css";
 
 type OrderSummaryPanelProps = {
@@ -40,14 +41,15 @@ export default function OrderSummaryPanel({
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const subtotal = useAppSelector((state) => state.cart.totalAmt);
-  const totalAmount = subtotal;
   const dinnerCutoff = getDinnerCutoffLabel();
   const isPayment = variant === "payment";
+  const paymentTotals = applyRazorpayProcessingFee(subtotal);
+  const totalAmount = paymentTotals.customerRupees;
   const itemCount = cartItems.reduce((sum, item) => sum + Number(item.quantity), 0);
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const defaultLabel = isPayment
-    ? `Pay ₹${totalAmount} Securely`
+    ? `Pay ${formatRupees(totalAmount)} Securely`
     : "Place Order";
 
   const handleApplyCoupon = () => {
@@ -135,13 +137,22 @@ export default function OrderSummaryPanel({
       <div className={styles.totals}>
         <div className={styles.totalRow}>
           <span>{isPayment ? `Subtotal (${itemCount} items)` : "Subtotal"}</span>
-          <span>₹{subtotal}</span>
+          <span>{formatRupees(subtotal)}</span>
         </div>
+        {paymentTotals.processingFee > 0 ? (
+          <div className={styles.totalRow}>
+            <span className={styles.feeLabel}>
+              Payment processing fee
+              <span className={styles.feeHint}>2% + GST</span>
+            </span>
+            <span>{formatRupees(paymentTotals.processingFee)}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.totalAmountBox}>
         <span>Total Amount</span>
-        <strong>₹{totalAmount}</strong>
+        <strong>{formatRupees(totalAmount)}</strong>
       </div>
 
       {isPayment ? (

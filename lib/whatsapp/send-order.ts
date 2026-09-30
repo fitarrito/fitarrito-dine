@@ -1,3 +1,5 @@
+import { formatRupees } from "@lib/razorpayFee";
+
 export type OrderWhatsAppItem = {
   item_name: string;
   selected_protein?: string | null;
@@ -54,7 +56,7 @@ export function formatOrderWhatsAppMessage(
         .join("\n");
       const proteinLine = details ? `\n${details}` : "";
 
-      return `${item.quantity} × ${item.item_name}${proteinLine}\n₹${lineTotal}`;
+      return `${item.quantity} × ${item.item_name}${proteinLine}\n${formatRupees(lineTotal)}`;
     })
     .join("\n\n");
 
@@ -78,6 +80,14 @@ export function formatOrderWhatsAppMessage(
         ? "Razorpay (Paid)"
         : input.paymentMethod;
 
+  const processingFee = Math.round(
+    (input.total - input.subtotal - input.deliveryCharge) * 100,
+  ) / 100;
+  const processingFeeLine =
+    processingFee > 0
+      ? `\nPayment fee: ${formatRupees(processingFee)}`
+      : "";
+
   return `🍽️ NEW FITARRITO ORDER
 
 Order: #${input.orderId}
@@ -89,9 +99,9 @@ ${input.customerName}
 Items:
 ${itemLines}
 
-Subtotal: ₹${input.subtotal}
-Delivery: ₹${input.deliveryCharge}
-TOTAL: ₹${input.total}
+Subtotal: ${formatRupees(input.subtotal)}
+Delivery: ${formatRupees(input.deliveryCharge)}${processingFeeLine}
+TOTAL: ${formatRupees(input.total)}
 
 Payment: ${paymentLabel}
 

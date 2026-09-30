@@ -31,6 +31,10 @@ function getAvailableProteins(item: menuItem) {
   );
 }
 
+function formatRupee(amount: number) {
+  return `₹${Math.round(amount)}`;
+}
+
 function FitarritoHouseCard({
   item,
   onAddedToCart,
@@ -52,6 +56,14 @@ function FitarritoHouseCard({
   const [selectedProteinName, setSelectedProteinName] = useState<string>("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+
+  const selectedSizePrice = useMemo(() => {
+    const selectedSize = sizeVariants.find(
+      (size) => size.name === selectedSizeName,
+    );
+
+    return parseFloat(String(selectedSize?.price ?? item.price ?? 0));
+  }, [item.price, selectedSizeName, sizeVariants]);
 
   const handleAddToCart = async () => {
     if (isSalad) {
@@ -105,6 +117,7 @@ function FitarritoHouseCard({
 
   const renderSizeButton = (size: SizeVariant) => {
     const active = selectedSizeName === size.name;
+    const sizePrice = parseFloat(String(size.price || 0));
 
     return (
       <button
@@ -114,7 +127,8 @@ function FitarritoHouseCard({
         onClick={() => setSelectedSizeName(size.name)}
         aria-pressed={active}
       >
-        {size.name}
+        <span className={styles.sizeName}>{size.name}</span>
+        <span className={styles.sizePrice}>{formatRupee(sizePrice)}</span>
       </button>
     );
   };
@@ -203,6 +217,9 @@ function FitarritoHouseCard({
         ) : null}
 
         <div className={styles.cardFooter}>
+          {!isSalad && selectedSizePrice > 0 ? (
+            <p className={styles.selectedPrice}>{formatRupee(selectedSizePrice)}</p>
+          ) : null}
           <button
             type="button"
             className={`${styles.addButton} ${

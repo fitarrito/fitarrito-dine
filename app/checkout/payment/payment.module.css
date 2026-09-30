@@ -145,6 +145,7 @@
   border-color: #fecaca;
   background: #fff7f7;
   box-shadow: 0 0 0 1px rgba(252, 30, 30, 0.08);
+  cursor: default;
 }
 
 .radio {
@@ -269,4 +270,14 @@
   color: #b91c1c;
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+.testHint {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }

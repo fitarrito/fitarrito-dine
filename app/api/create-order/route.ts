@@ -9,8 +9,8 @@ import {
   getRazorpayError,
   isValidAmountPaise,
   parseAmountPaise,
-  rupeesToPaise,
 } from "@lib/razorpay";
+import { applyRazorpayProcessingFee } from "@lib/razorpayFee";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ async function resolveAmountPaise(body: {
       0,
     );
 
-    return { amount: rupeesToPaise(rupees) };
+    return { amount: applyRazorpayProcessingFee(rupees).customerPaise };
   }
 
   const amount = parseAmountPaise(body.amount);
@@ -56,7 +56,9 @@ async function resolveAmountPaise(body: {
     return { error: "Amount is required.", status: 400 as const };
   }
 
-  return { amount };
+  return {
+    amount: applyRazorpayProcessingFee(amount / 100).customerPaise,
+  };
 }
 
 export async function POST(request: Request) {
@@ -112,6 +114,7 @@ export async function POST(request: Request) {
       order_id: order.id,
       amount: order.amount,
       currency: order.currency,
+      key_id: config.keyId,
     });
   } catch (error) {
     const razorpayError = getRazorpayError(error);

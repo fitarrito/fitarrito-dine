@@ -9,8 +9,19 @@ import {
   normalizeIndianPhone,
 } from "@lib/normalizePhone";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
+import { applyRazorpayProcessingFee } from "@lib/razorpayFee";
 
 export const dynamic = "force-dynamic";
+
+function normalizePaymentMethod(value: unknown) {
+  const method = String(value ?? "razorpay").trim().toLowerCase();
+
+  if (method === "cash" || method === "qr" || method === "razorpay") {
+    return method;
+  }
+
+  return "razorpay";
+}
 
 export async function POST(request: Request) {
   if (!getSupabaseAdminConfig()) {
@@ -36,7 +47,7 @@ export async function POST(request: Request) {
       pincode,
       landmark,
       deliveryInstructions,
-      paymentMethod = "cash",
+      paymentMethod = "razorpay",
     } = body;
 
     if (!sessionId) {
@@ -129,29 +140,49 @@ export async function POST(request: Request) {
     );
 
     const deliveryCharge = 0;
-    const total = subtotal + deliveryCharge;
+    const total = applyRazorpayProcessingFee(subtotal).customerRupees;
+    const storedPaymentMethod = normalizePaymentMethod(paymentMethod);
+    const orderPayload = {
+      session_id: sessionId,
+      customer_name: customerName.trim(),
+      customer_phone: normalizedPhone,
+      address_line1: addressLine1.trim(),
+      area: area.trim(),
+      city: city?.trim() || "Chennai",
+      pincode: pincode.trim(),
+      landmark: landmark?.trim() || null,
+      delivery_instructions: deliveryInstructions?.trim() || null,
+      subtotal,
+      delivery_charge: deliveryCharge,
+      total,
+      status: "pending",
+      whatsapp_status: "pending",
+    };
 
-    const { data: order, error: orderError } = await supabaseAdmin
+    let { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
-        session_id: sessionId,
-        customer_name: customerName.trim(),
-        customer_phone: normalizedPhone,
-        address_line1: addressLine1.trim(),
-        area: area.trim(),
-        city: city?.trim() || "Chennai",
-        pincode: pincode.trim(),
-        landmark: landmark?.trim() || null,
-        delivery_instructions: deliveryInstructions?.trim() || null,
-        subtotal,
-        delivery_charge: deliveryCharge,
-        total,
-        payment_method: paymentMethod,
-        status: "pending",
-        whatsapp_status: "pending",
+        ...orderPayload,
+        payment_method: storedPaymentMethod,
       })
       .select()
       .single();
+
+    // Live DB currently checks payment_method IN ('cash', 'qr').
+    if (orderError?.code === "23514" && storedPaymentMethod === "razorpay") {
+      console.warn(
+        'orders.payment_method check rejected "razorpay". Saving as "qr" until the Razorpay constraint migration is applied.',
+      );
+
+      ({ data: order, error: orderError } = await supabaseAdmin
+        .from("orders")
+        .insert({
+          ...orderPayload,
+          payment_method: "qr",
+        })
+        .select()
+        .single());
+    }
 
     if (orderError || !order) {
       console.error("Order creation error:", orderError);

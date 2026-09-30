@@ -20,8 +20,10 @@ export type RazorpayCheckoutSuccess = {
 
 type RazorpayFailedResponse = {
   error?: {
+    code?: string;
     description?: string;
     reason?: string;
+    step?: string;
   };
 };
 
@@ -32,17 +34,30 @@ type RazorpayCheckoutOptions = {
   name: string;
   description?: string;
   order_id: string;
+  callback_url?: string;
+  redirect?: boolean;
+  timeout?: number;
+  retry?: {
+    enabled?: boolean;
+  };
   prefill?: {
     name?: string;
     email?: string;
     contact?: string;
   };
+  notes?: Record<string, string>;
   theme?: {
     color?: string;
+  };
+  config?: {
+    display?: {
+      hide?: Array<{ method?: string }>;
+    };
   };
   handler: (response: RazorpayCheckoutSuccess) => void;
   modal?: {
     ondismiss?: () => void;
+    confirm_close?: boolean;
   };
 };
 
@@ -63,6 +78,24 @@ declare global {
 }
 
 const CHECKOUT_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+export function isRazorpayTestKey(key: string) {
+  return key.startsWith("rzp_test_");
+}
+
+export function paymentFailedMessage(response: RazorpayFailedResponse) {
+  const reason = response.error?.reason ?? "";
+  const description = response.error?.description ?? "";
+
+  if (
+    reason === "authentication_failed" ||
+    /authentication failed/i.test(description)
+  ) {
+    return "UPI authentication failed. GPay, PhonePe, and other UPI apps only work with live Razorpay keys. In test mode, choose UPI and enter success@razorpay instead of opening a UPI app.";
+  }
+
+  return description || reason || "Payment failed.";
+}
 
 export function loadRazorpayCheckout() {
   if (typeof window === "undefined") {
@@ -126,6 +159,7 @@ export async function openRazorpayCheckout(
         finish(() => resolve(response));
       },
       modal: {
+        confirm_close: true,
         ondismiss: () => {
           finish(() => reject(new PaymentCancelledError()));
         },
@@ -133,15 +167,7 @@ export async function openRazorpayCheckout(
     });
 
     razorpay.on("payment.failed", (response) => {
-      finish(() =>
-        reject(
-          new PaymentFailedError(
-            response.error?.description ||
-              response.error?.reason ||
-              "Payment failed.",
-          ),
-        ),
-      );
+      finish(() => reject(new PaymentFailedError(paymentFailedMessage(response))));
     });
 
     razorpay.open();

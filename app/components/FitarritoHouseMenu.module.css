@@ -189,12 +189,14 @@
 
 .optionButton {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.7rem;
+  gap: 0.15rem;
+  min-width: 5.6rem;
+  padding: 0.45rem 0.8rem;
   border: 1px solid #d1d5db;
-  border-radius: 999px;
+  border-radius: 12px;
   background: #fff;
   color: #374151;
   font-size: 0.78rem;
@@ -206,6 +208,22 @@
   background: #fff5f5;
   color: var(--customTheme, #fc1e1e);
   font-weight: 700;
+}
+
+.sizeName {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sizePrice {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.optionButtonActive .sizePrice {
+  color: var(--customTheme, #fc1e1e);
 }
 
 .proteinIcon {
@@ -294,6 +312,14 @@
   gap: 0.75rem;
   margin-top: auto;
   padding-top: 1rem;
+}
+
+.selectedPrice {
+  margin: 0;
+  color: #111827;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .addButton {
