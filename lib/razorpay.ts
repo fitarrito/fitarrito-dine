@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import Razorpay from "razorpay";
 
 const MIN_AMOUNT_PAISE = 100;
@@ -26,6 +27,72 @@ export function getRazorpayClient() {
     key_id: config.keyId,
     key_secret: config.keySecret,
   });
+}
+
+function valuesMatch(expected: string, received: string) {
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  const receivedBuffer = Buffer.from(received, "utf8");
+
+  return (
+    expectedBuffer.length === receivedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, receivedBuffer)
+  );
+}
+
+export function verifyRazorpayPaymentSignature({
+  orderId,
+  paymentId,
+  signature,
+}: {
+  orderId: string;
+  paymentId: string;
+  signature: string;
+}) {
+  const config = getRazorpayConfig();
+
+  if (!config) return false;
+
+  const expectedSignature = crypto
+    .createHmac("sha256", config.keySecret)
+    .update(`${orderId}|${paymentId}`)
+    .digest("hex");
+
+  return valuesMatch(expectedSignature, signature);
+}
+
+export async function verifyRazorpayPayment({
+  orderId,
+  paymentId,
+  signature,
+  expectedAmountPaise,
+}: {
+  orderId: string;
+  paymentId: string;
+  signature: string;
+  expectedAmountPaise: number;
+}) {
+  if (
+    !verifyRazorpayPaymentSignature({ orderId, paymentId, signature })
+  ) {
+    return { verified: false as const, reason: "signature" as const };
+  }
+
+  const payment = await getRazorpayClient().payments.fetch(paymentId);
+  const amount = Number(payment.amount);
+
+  if (payment.order_id !== orderId) {
+    return { verified: false as const, reason: "order" as const };
+  }
+
+  if (amount !== expectedAmountPaise) {
+    return { verified: false as const, reason: "amount" as const };
+  }
+
+  if (payment.status !== "captured") {
+    return { verified: false as const, reason: "status" as const };
+  }
+
+  return { verified: true as const };
 }
 
 export function rupeesToPaise(rupees: number) {

@@ -12,6 +12,11 @@ import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { sendNewOrderEmail } from "@lib/email/resend";
 import { getDeliveryArea } from "@lib/deliveryAreas";
 import { calculateOrderTotals } from "@lib/orderTotals";
+import {
+  createStaffOrderConfirmationToken,
+  createStaffOrderConfirmationUrl,
+} from "@lib/staffOrderConfirmation";
+import { getRazorpayConfig, verifyRazorpayPayment } from "@lib/razorpay";
 
 export const dynamic = "force-dynamic";
 
@@ -43,13 +48,12 @@ export async function POST(request: Request) {
       sessionId,
       customerName,
       customerPhone,
-      addressLine1,
       area,
-      city,
-      pincode,
-      landmark,
       deliveryInstructions,
       paymentMethod = "razorpay",
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
     } = body;
 
     if (!sessionId) {
@@ -90,17 +94,15 @@ export async function POST(request: Request) {
     }
 
     const selectedArea = getDeliveryArea(area.trim());
-    const deliveryLocation = area.trim();
-    const storedAddress = addressLine1?.trim() || deliveryLocation;
-    const storedCity = city?.trim() || "Chennai";
-    const storedPincode = pincode?.trim() || selectedArea?.pincode || "";
 
-    if (!storedPincode) {
+    if (!selectedArea) {
       return NextResponse.json(
         { error: "Please select a valid delivery location." },
         { status: 400 },
       );
     }
+
+    const deliveryLocation = selectedArea.name;
 
     if (getOrderWindow() === "closed") {
       return NextResponse.json(
@@ -144,15 +146,65 @@ export async function POST(request: Request) {
     const totals = calculateOrderTotals(subtotal, deliveryCharge);
     const total = totals.total;
     const storedPaymentMethod = normalizePaymentMethod(paymentMethod);
+
+    if (storedPaymentMethod === "razorpay") {
+      if (
+        typeof razorpayOrderId !== "string" ||
+        !razorpayOrderId ||
+        typeof razorpayPaymentId !== "string" ||
+        !razorpayPaymentId ||
+        typeof razorpaySignature !== "string" ||
+        !razorpaySignature
+      ) {
+        return NextResponse.json(
+          { error: "Verified Razorpay payment details are required." },
+          { status: 400 },
+        );
+      }
+
+      if (!getRazorpayConfig()) {
+        return NextResponse.json(
+          { error: "Razorpay payment verification is unavailable." },
+          { status: 503 },
+        );
+      }
+
+      try {
+        const paymentVerification = await verifyRazorpayPayment({
+          orderId: razorpayOrderId,
+          paymentId: razorpayPaymentId,
+          signature: razorpaySignature,
+          expectedAmountPaise: totals.customerPaise,
+        });
+
+        if (!paymentVerification.verified) {
+          console.error(
+            `Razorpay payment validation failed for cart ${sessionId}: ${paymentVerification.reason}`,
+          );
+
+          return NextResponse.json(
+            { error: "Payment could not be verified for this order." },
+            { status: 400 },
+          );
+        }
+      } catch (error) {
+        console.error(
+          `Razorpay payment lookup failed for cart ${sessionId}:`,
+          error,
+        );
+
+        return NextResponse.json(
+          { error: "Unable to verify payment with Razorpay." },
+          { status: 502 },
+        );
+      }
+    }
+
     const orderPayload = {
       session_id: sessionId,
       customer_name: customerName.trim(),
       customer_phone: normalizedPhone,
-      address_line1: storedAddress,
       area: deliveryLocation,
-      city: storedCity,
-      pincode: storedPincode,
-      landmark: landmark?.trim() || null,
       delivery_instructions: deliveryInstructions?.trim() || null,
       subtotal,
       delivery_charge: deliveryCharge,
@@ -241,6 +293,20 @@ export async function POST(request: Request) {
     console.log(`Order ${order.id} saved successfully`);
 
     let emailWarning: string | undefined;
+    let confirmationUrl: string | undefined;
+
+    try {
+      const confirmationToken = createStaffOrderConfirmationToken(order.id);
+      confirmationUrl = createStaffOrderConfirmationUrl(
+        confirmationToken,
+        request.url,
+      );
+    } catch (error) {
+      console.error(
+        `Unable to create staff confirmation link for order ${order.id}:`,
+        error,
+      );
+    }
 
     try {
       const emailResult = await sendNewOrderEmail({
@@ -260,6 +326,7 @@ export async function POST(request: Request) {
         gst: totals.gst,
         total: Number(order.total),
         paymentMethod: order.payment_method,
+        confirmationUrl,
       });
 
       if (emailResult.sent) {

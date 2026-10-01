@@ -1,19 +1,10 @@
-import crypto from "crypto";
 import { NextResponse } from "next/server";
-import { getRazorpayConfig } from "@lib/razorpay";
+import {
+  getRazorpayConfig,
+  verifyRazorpayPaymentSignature,
+} from "@lib/razorpay";
 
 export const dynamic = "force-dynamic";
-
-function signaturesMatch(expected: string, received: string) {
-  const expectedBuffer = Buffer.from(expected, "utf8");
-  const receivedBuffer = Buffer.from(received, "utf8");
-
-  if (expectedBuffer.length !== receivedBuffer.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
-}
 
 export async function POST(request: Request) {
   const config = getRazorpayConfig();
@@ -48,12 +39,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const expectedSignature = crypto
-      .createHmac("sha256", config.keySecret)
-      .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-      .digest("hex");
-
-    if (!signaturesMatch(expectedSignature, razorpaySignature)) {
+    if (
+      !verifyRazorpayPaymentSignature({
+        orderId: razorpayOrderId,
+        paymentId: razorpayPaymentId,
+        signature: razorpaySignature,
+      })
+    ) {
       return NextResponse.json(
         { success: false, error: "Payment signature mismatch." },
         { status: 400 },

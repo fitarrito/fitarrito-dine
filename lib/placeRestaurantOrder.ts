@@ -13,6 +13,7 @@ export type PlaceRestaurantOrderInput = {
   paymentMethod: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
+  razorpaySignature?: string;
 };
 
 export type PlaceRestaurantOrderResult = {

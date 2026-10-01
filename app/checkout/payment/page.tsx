@@ -92,6 +92,7 @@ export default function CheckoutPaymentPage() {
   const finishOrder = async (paymentIds?: {
     razorpayOrderId?: string;
     razorpayPaymentId?: string;
+    razorpaySignature?: string;
   }) => {
     if (!delivery) return;
 
@@ -108,13 +109,16 @@ export default function CheckoutPaymentPage() {
       paymentMethod: "razorpay",
       razorpayOrderId: paymentIds?.razorpayOrderId,
       razorpayPaymentId: paymentIds?.razorpayPaymentId,
+      razorpaySignature: paymentIds?.razorpaySignature,
     });
 
     completingRef.current = true;
     clearCheckoutDelivery();
     clearVerifiedPayment();
     dispatch(clearCart());
-    router.push(`/menu?orderSuccess=${encodeURIComponent(result.orderId)}`);
+    router.push(
+      `/order-success?orderId=${encodeURIComponent(result.orderId)}`,
+    );
   };
 
   const completePaidOrder = async (payment: {
@@ -145,6 +149,7 @@ export default function CheckoutPaymentPage() {
     await finishOrder({
       razorpayOrderId: payment.razorpay_order_id,
       razorpayPaymentId: payment.razorpay_payment_id,
+      razorpaySignature: payment.razorpay_signature,
     });
   };
 
