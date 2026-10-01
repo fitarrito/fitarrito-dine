@@ -82,6 +82,7 @@ export default function CheckoutPaymentPage() {
   }, [dispatch, router]);
 
   useEffect(() => {
+    if (completingRef.current) return;
     if (loading === "idle" || loading === "pending") return;
 
     if (cartItems.length === 0) {
@@ -116,7 +117,7 @@ export default function CheckoutPaymentPage() {
     clearCheckoutDelivery();
     clearVerifiedPayment();
     dispatch(clearCart());
-    router.push(
+    router.replace(
       `/order-success?orderId=${encodeURIComponent(result.orderId)}`,
     );
   };

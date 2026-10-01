@@ -2,9 +2,13 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { FaCheck, FaExclamationTriangle, FaLock } from "react-icons/fa";
+import { FaCheck, FaExclamationTriangle, FaLock, FaWhatsapp } from "react-icons/fa";
 import { fetchJson } from "@lib/apiFetch";
 import { formatRupees } from "@lib/razorpayFee";
+import {
+  PREPARATION_ESTIMATES,
+  type PreparationMinutes,
+} from "@lib/whatsapp/customerConfirmation";
 import styles from "./confirm.module.css";
 
 type StaffOrder = {
@@ -15,6 +19,11 @@ type StaffOrder = {
   paymentMethod: string;
   status: string;
   createdAt?: string | null;
+  preparationMinutes?: PreparationMinutes | null;
+  preparationLabel?: string | null;
+  customerPhoneValid?: boolean;
+  whatsappUrl?: string | null;
+  whatsappError?: string | null;
 };
 
 type InspectResponse = {
@@ -26,6 +35,10 @@ type ConfirmResponse = {
   alreadyConfirmed: boolean;
   orderId: string | number;
   status: string;
+  preparationMinutes?: PreparationMinutes | null;
+  preparationLabel?: string | null;
+  whatsappUrl?: string | null;
+  whatsappError?: string | null;
 };
 
 function paymentLabel(method: string) {
@@ -41,10 +54,14 @@ function paymentLabel(method: string) {
 function StaffOrderConfirmationContent() {
   const token = useSearchParams().get("token");
   const [order, setOrder] = useState<StaffOrder | null>(null);
+  const [preparationMinutes, setPreparationMinutes] =
+    useState<PreparationMinutes | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [alreadyConfirmed, setAlreadyConfirmed] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
+  const [whatsappError, setWhatsappError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,6 +81,9 @@ function StaffOrderConfirmationContent() {
         if (cancelled) return;
 
         setOrder(loadedOrder);
+        setPreparationMinutes(loadedOrder.preparationMinutes ?? null);
+        setWhatsappUrl(loadedOrder.whatsappUrl ?? null);
+        setWhatsappError(loadedOrder.whatsappError ?? null);
 
         if (loadedOrder.status === "confirmed") {
           setConfirmed(true);
@@ -89,7 +109,7 @@ function StaffOrderConfirmationContent() {
   }, [token]);
 
   const confirmOrder = async () => {
-    if (!token || isConfirming) return;
+    if (!token || isConfirming || !preparationMinutes) return;
 
     setIsConfirming(true);
     setError(null);
@@ -100,14 +120,29 @@ function StaffOrderConfirmationContent() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "confirm", token }),
+          body: JSON.stringify({
+            action: "confirm",
+            token,
+            preparationMinutes,
+          }),
         },
       );
 
       setConfirmed(result.success);
       setAlreadyConfirmed(result.alreadyConfirmed);
+      setWhatsappUrl(result.whatsappUrl ?? null);
+      setWhatsappError(result.whatsappError ?? null);
       setOrder((current) =>
-        current ? { ...current, status: result.status } : current,
+        current
+          ? {
+              ...current,
+              status: result.status,
+              preparationMinutes: result.preparationMinutes,
+              preparationLabel: result.preparationLabel,
+              whatsappUrl: result.whatsappUrl,
+              whatsappError: result.whatsappError,
+            }
+          : current,
       );
     } catch (confirmError) {
       setError(
@@ -144,6 +179,8 @@ function StaffOrderConfirmationContent() {
   if (!order) return null;
 
   if (confirmed) {
+    const needsPreparationTime = !order.preparationLabel;
+
     return (
       <section className={styles.card}>
         <span className={styles.successIcon}>
@@ -154,7 +191,57 @@ function StaffOrderConfirmationContent() {
           Order <strong>#{order.id}</strong> is confirmed and ready for staff
           preparation.
         </p>
+        {order.preparationLabel ? (
+          <p className={styles.estimate}>
+            Estimated waiting time: <strong>{order.preparationLabel}</strong>
+          </p>
+        ) : null}
         <div className={styles.statusBadge}>Confirmed</div>
+
+        {needsPreparationTime ? (
+          <PreparationTimeField
+            value={preparationMinutes}
+            onChange={setPreparationMinutes}
+          />
+        ) : null}
+
+        {whatsappError ? <p className={styles.errorMessage}>{whatsappError}</p> : null}
+        {error ? <p className={styles.errorMessage}>{error}</p> : null}
+
+        {needsPreparationTime ? (
+          <button
+            type="button"
+            className={styles.confirmButton}
+            onClick={() => void confirmOrder()}
+            disabled={isConfirming || !preparationMinutes}
+          >
+            {isConfirming ? "Saving..." : "Save waiting time"}
+          </button>
+        ) : null}
+
+        {whatsappUrl ? (
+          <>
+            <a
+              className={styles.whatsappButton}
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <FaWhatsapp aria-hidden />
+              Notify Customer on WhatsApp
+            </a>
+            <p className={styles.securityNote}>
+              WhatsApp opens with the message ready to send. Staff must tap
+              Send manually. Opening this link does not mark the notification
+              as sent and does not change payment status.
+            </p>
+          </>
+        ) : (
+          <p className={styles.securityNote}>
+            Confirmation changes the kitchen order status only. It does not
+            change or verify payment status.
+          </p>
+        )}
       </section>
     );
   }
@@ -188,6 +275,19 @@ function StaffOrderConfirmationContent() {
         </div>
       </div>
 
+      {canConfirm ? (
+        <PreparationTimeField
+          value={preparationMinutes}
+          onChange={setPreparationMinutes}
+        />
+      ) : null}
+
+      {order.customerPhoneValid === false ? (
+        <p className={styles.errorMessage}>
+          This order does not have a valid customer phone number. You can still
+          confirm it, but WhatsApp cannot be opened afterward.
+        </p>
+      ) : null}
       {error ? <p className={styles.errorMessage}>{error}</p> : null}
 
       {canConfirm ? (
@@ -195,7 +295,7 @@ function StaffOrderConfirmationContent() {
           type="button"
           className={styles.confirmButton}
           onClick={() => void confirmOrder()}
-          disabled={isConfirming}
+          disabled={isConfirming || !preparationMinutes}
         >
           {isConfirming ? "Confirming..." : "Confirm Order"}
         </button>
@@ -211,6 +311,39 @@ function StaffOrderConfirmationContent() {
         or verify payment status.
       </p>
     </section>
+  );
+}
+
+function PreparationTimeField({
+  value,
+  onChange,
+}: {
+  value: PreparationMinutes | null;
+  onChange: (minutes: PreparationMinutes) => void;
+}) {
+  return (
+    <fieldset className={styles.timeOptions}>
+      <legend>Estimated waiting time</legend>
+      {PREPARATION_ESTIMATES.map((estimate) => {
+        const selected = value === estimate.minutes;
+
+        return (
+          <label
+            className={`${styles.timeOption} ${selected ? styles.timeOptionSelected : ""}`}
+            key={estimate.minutes}
+          >
+            <input
+              type="radio"
+              name="preparationMinutes"
+              value={estimate.minutes}
+              checked={selected}
+              onChange={() => onChange(estimate.minutes)}
+            />
+            <span>{estimate.label}</span>
+          </label>
+        );
+      })}
+    </fieldset>
   );
 }
 
