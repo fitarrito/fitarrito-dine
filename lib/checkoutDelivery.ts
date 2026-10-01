@@ -65,9 +65,6 @@ export function isCheckoutDeliveryComplete(data: CheckoutDelivery) {
   return Boolean(
     data.fullName.trim() &&
       data.mobileNumber.trim() &&
-      data.address.trim() &&
-      data.area.trim() &&
-      data.city.trim() &&
-      data.pincode.trim(),
+      data.area.trim(),
   );
 }

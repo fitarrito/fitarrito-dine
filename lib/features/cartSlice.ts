@@ -140,6 +140,7 @@ const cartSlice = createSlice({
     totalAmt: 0,
     totalCartItems: 0,
     loading: "idle" as "idle" | "pending" | "succeeded" | "failed",
+    removingItemId: null as string | null,
     error: null as string | null,
   },
   reducers: {
@@ -147,6 +148,7 @@ const cartSlice = createSlice({
       state.cartItems = [];
       state.totalAmt = 0;
       state.totalCartItems = 0;
+      state.removingItemId = null;
     },
   },
   extraReducers: (builder) => {
@@ -189,13 +191,30 @@ const cartSlice = createSlice({
         state.error =
           (action.payload as string | undefined) ?? "Failed to add to cart";
       })
+      .addCase(updateCartQuantity.pending, (state) => {
+        state.error = null;
+      })
       .addCase(updateCartQuantity.fulfilled, (state, action: PayloadAction<CartItem[]>) => {
         state.loading = "succeeded";
         applyCartItems(state, action.payload);
       })
+      .addCase(updateCartQuantity.rejected, (state, action) => {
+        state.error =
+          (action.payload as string | undefined) ?? "Failed to update cart item";
+      })
+      .addCase(removeCartItem.pending, (state, action) => {
+        state.removingItemId = action.meta.arg.id;
+        state.error = null;
+      })
       .addCase(removeCartItem.fulfilled, (state, action: PayloadAction<CartItem[]>) => {
         state.loading = "succeeded";
+        state.removingItemId = null;
         applyCartItems(state, action.payload);
+      })
+      .addCase(removeCartItem.rejected, (state, action) => {
+        state.removingItemId = null;
+        state.error =
+          (action.payload as string | undefined) ?? "Failed to remove cart item";
       });
   },
 });

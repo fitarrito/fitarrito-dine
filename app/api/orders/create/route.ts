@@ -9,7 +9,9 @@ import {
   normalizeIndianPhone,
 } from "@lib/normalizePhone";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
-import { applyRazorpayProcessingFee } from "@lib/razorpayFee";
+import { sendNewOrderEmail } from "@lib/email/resend";
+import { getDeliveryArea } from "@lib/deliveryAreas";
+import { calculateOrderTotals } from "@lib/orderTotals";
 
 export const dynamic = "force-dynamic";
 
@@ -80,23 +82,22 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!addressLine1?.trim()) {
-      return NextResponse.json(
-        { error: "Please enter your address." },
-        { status: 400 },
-      );
-    }
-
     if (!area?.trim()) {
       return NextResponse.json(
-        { error: "Please enter your area." },
+        { error: "Please select your delivery location." },
         { status: 400 },
       );
     }
 
-    if (!pincode?.trim()) {
+    const selectedArea = getDeliveryArea(area.trim());
+    const deliveryLocation = area.trim();
+    const storedAddress = addressLine1?.trim() || deliveryLocation;
+    const storedCity = city?.trim() || "Chennai";
+    const storedPincode = pincode?.trim() || selectedArea?.pincode || "";
+
+    if (!storedPincode) {
       return NextResponse.json(
-        { error: "Please enter your pincode." },
+        { error: "Please select a valid delivery location." },
         { status: 400 },
       );
     }
@@ -140,16 +141,17 @@ export async function POST(request: Request) {
     );
 
     const deliveryCharge = 0;
-    const total = applyRazorpayProcessingFee(subtotal).customerRupees;
+    const totals = calculateOrderTotals(subtotal, deliveryCharge);
+    const total = totals.total;
     const storedPaymentMethod = normalizePaymentMethod(paymentMethod);
     const orderPayload = {
       session_id: sessionId,
       customer_name: customerName.trim(),
       customer_phone: normalizedPhone,
-      address_line1: addressLine1.trim(),
-      area: area.trim(),
-      city: city?.trim() || "Chennai",
-      pincode: pincode.trim(),
+      address_line1: storedAddress,
+      area: deliveryLocation,
+      city: storedCity,
+      pincode: storedPincode,
       landmark: landmark?.trim() || null,
       delivery_instructions: deliveryInstructions?.trim() || null,
       subtotal,
@@ -236,6 +238,40 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log(`Order ${order.id} saved successfully`);
+
+    let emailWarning: string | undefined;
+
+    try {
+      const emailResult = await sendNewOrderEmail({
+        orderId: order.id,
+        customerName: order.customer_name,
+        customerPhone: order.customer_phone,
+        deliveryLocation: order.area,
+        items: orderItems.map((item, index) => ({
+          item_name: item.item_name,
+          selected_protein: item.selected_protein,
+          selected_size: cartItems[index]?.selected_size ?? null,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        })),
+        subtotal: Number(order.subtotal),
+        deliveryCharge: Number(order.delivery_charge),
+        gst: totals.gst,
+        total: Number(order.total),
+        paymentMethod: order.payment_method,
+      });
+
+      if (emailResult.sent) {
+        console.log(`Order email sent successfully for order ${order.id}`);
+      } else {
+        emailWarning = "Order email could not be sent.";
+      }
+    } catch (error) {
+      emailWarning = "Order email could not be sent.";
+      console.error(`Order email failed for order ${order.id}:`, error);
+    }
+
     await supabaseAdmin.from("CartItems").delete().eq("session_id", sessionId);
 
     return NextResponse.json({
@@ -243,6 +279,7 @@ export async function POST(request: Request) {
       orderId: order.id,
       total,
       message: "Order placed successfully.",
+      ...(emailWarning ? { emailWarning } : {}),
     });
   } catch (error) {
     console.error("Place order error:", error);

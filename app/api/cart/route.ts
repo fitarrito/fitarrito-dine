@@ -216,7 +216,6 @@ export async function POST(request: Request) {
           base_price: basePrice,
           protein_price: proteinPrice,
           price: unitPrice,
-          updated_at: new Date().toISOString(),
         })
         .eq("id", existingItem.id)
         .select()
@@ -323,19 +322,17 @@ export async function PATCH(req: Request) {
 
   try {
     const body = await req.json();
-    const { id, quantity } = body;
+    const id = typeof body.id === "string" ? body.id.trim() : String(body.id ?? "");
+    const quantity = Number(body.quantity);
 
-    if (!id || quantity < 1) {
+    if (!id || !Number.isInteger(quantity) || quantity < 1) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     const supabaseAdmin = getSupabaseAdminClient();
     const { data: cartRow, error: cartError } = await supabaseAdmin
       .from("CartItems")
-      .update({
-        quantity,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ quantity })
       .eq("id", id)
       .select()
       .single();

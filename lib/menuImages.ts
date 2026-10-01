@@ -24,15 +24,8 @@ export function resolveMenuItemImageUrl(item: Pick<menuItem, "title" | "imageUrl
   return fallback ?? "/fallback-image.jpg";
 }
 
-const PROTEIN_IMAGE_FALLBACKS: Record<string, string> = {
-  "/images/menuimages/proteinImages/TofuIcon.svg":
-    "/images/menuimages/proteinImages/TofuIcon.png",
-  "/images/menuimages/proteinImages/PrawnIcon.svg":
-    "/images/menuimages/proteinImages/PrawnIcon.png",
-};
-
 export function resolveProteinImageUrl(imageUrl?: string) {
   if (!imageUrl) return undefined;
 
-  return PROTEIN_IMAGE_FALLBACKS[imageUrl] ?? imageUrl;
+  return imageUrl;
 }

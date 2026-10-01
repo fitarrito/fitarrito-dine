@@ -384,7 +384,11 @@
 }
 
 .proteinIcon {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
   object-fit: contain;
+  background: #f3f4f6;
   pointer-events: none;
   user-select: none;
 }

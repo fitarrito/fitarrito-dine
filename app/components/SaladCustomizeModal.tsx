@@ -11,7 +11,7 @@ import {
   getSaladToppingOptions,
   getSaladTypeOptions,
 } from "@lib/fitarritoHouseMenu";
-import { calculateMenuItemPricing } from "@lib/menuPricing";
+import { calculateMenuItemPricing, getAvailableProteinVariants } from "@lib/menuPricing";
 import { resolveMenuItemImageUrl, resolveProteinImageUrl } from "@lib/menuImages";
 import { useAppDispatch } from "@lib/hooks";
 import { useOrderWindow } from "@lib/useOrderWindow";
@@ -35,14 +35,6 @@ function formatRupee(amount: number) {
   return `₹${Math.round(amount)}`;
 }
 
-function getAvailableProteins(item: menuItem) {
-  return (
-    item.proteinVariants?.filter(
-      (protein) => protein.name.toLowerCase() !== "mutton",
-    ) ?? []
-  );
-}
-
 export default function SaladCustomizeModal({
   item,
   onClose,
@@ -51,7 +43,6 @@ export default function SaladCustomizeModal({
   const dispatch = useAppDispatch();
   const orderWindow = useOrderWindow();
   const sizeVariants = item.sizeVariants ?? [];
-  const availableProteins = getAvailableProteins(item);
   const saladTypeOptions = getSaladTypeOptions(item);
   const toppingOptions = getSaladToppingOptions(item);
 
@@ -72,8 +63,9 @@ export default function SaladCustomizeModal({
         ? [toppingOptions[0].name]
         : [];
   });
+  const availableProteins = getAvailableProteinVariants(item, selectedSizeName);
   const [selectedProteinName, setSelectedProteinName] = useState(
-    availableProteins[0]?.name ?? "",
+    () => getAvailableProteinVariants(item, sizeVariants[0]?.name)[0]?.name ?? "",
   );
   const [isAdding, setIsAdding] = useState(false);
   const selectedSalad =
@@ -116,6 +108,15 @@ export default function SaladCustomizeModal({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [onClose]);
+
+  useEffect(() => {
+    if (
+      selectedProteinName &&
+      !availableProteins.some((protein) => protein.name === selectedProteinName)
+    ) {
+      setSelectedProteinName("");
+    }
+  }, [availableProteins, selectedProteinName]);
 
   const toggleTopping = (toppingName: string) => {
     setSelectedToppings((current) =>
@@ -170,7 +171,15 @@ export default function SaladCustomizeModal({
         key={size.name}
         type="button"
         className={`${styles.sizeCard} ${active ? styles.sizeCardActive : ""}`}
-        onClick={() => setSelectedSizeName(size.name)}
+        onClick={() => {
+          setSelectedSizeName(size.name);
+          if (
+            size.name.trim().toLowerCase() === "mini" &&
+            selectedProteinName.trim().toLowerCase() === "prawn"
+          ) {
+            setSelectedProteinName("");
+          }
+        }}
         aria-pressed={active}
       >
         <span

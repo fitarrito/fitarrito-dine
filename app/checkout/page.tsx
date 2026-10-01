@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  FaBuilding,
   FaHome,
   FaLeaf,
   FaMapMarkerAlt,
@@ -67,6 +66,8 @@ export default function CheckoutPage() {
     setForm((current) => ({
       ...current,
       area: selectedArea?.name ?? "",
+      address: selectedArea?.name ?? "",
+      city: current.city || "Chennai",
       pincode: selectedArea?.pincode ?? "",
     }));
     setFormError(null);
@@ -85,10 +86,7 @@ export default function CheckoutPage() {
     const requiredFields: Array<keyof CheckoutDelivery> = [
       "fullName",
       "mobileNumber",
-      "address",
       "area",
-      "city",
-      "pincode",
     ];
 
     const missingField = requiredFields.find((field) => !form[field].trim());
@@ -182,24 +180,9 @@ export default function CheckoutPage() {
                 <FaHome aria-hidden />
               </span>
               <div>
-                <h2 className={styles.sectionTitle}>Delivery Address</h2>
+                <h2 className={styles.sectionTitle}>Delivery Location</h2>
               </div>
             </header>
-
-            <label className={styles.field}>
-              <span className={styles.label}>
-                Address (House / Flat No, Street){" "}
-                <span className={styles.required}>*</span>
-              </span>
-              <textarea
-                className={styles.textarea}
-                value={form.address}
-                onChange={updateField("address")}
-                placeholder="12, ABC Street, Plot No 45"
-                rows={3}
-                required
-              />
-            </label>
 
             <label className={styles.field}>
               <span className={styles.label}>
@@ -213,61 +196,13 @@ export default function CheckoutPage() {
                   required
                   className={form.area ? styles.select : styles.selectPlaceholder}
                 >
-                  <option value="">Select your area</option>
+                  <option value="">Select delivery location</option>
                   {DELIVERY_AREAS.map((item) => (
                     <option key={item.name} value={item.name}>
                       {item.name}
                     </option>
                   ))}
                 </select>
-              </span>
-            </label>
-
-            <div className={styles.fieldGridTwo}>
-              <label className={styles.field}>
-                <span className={styles.label}>
-                  City <span className={styles.required}>*</span>
-                </span>
-                <span className={styles.inputWrap}>
-                  <FaBuilding className={styles.inputIcon} aria-hidden />
-                  <input
-                    type="text"
-                    value={form.city}
-                    onChange={updateField("city")}
-                    placeholder="Chennai"
-                    required
-                  />
-                </span>
-              </label>
-
-              <label className={styles.field}>
-                <span className={styles.label}>
-                  Pincode <span className={styles.required}>*</span>
-                </span>
-                <span className={styles.inputWrap}>
-                  <FaMapMarkerAlt className={styles.inputIcon} aria-hidden />
-                  <input
-                    type="text"
-                    value={form.pincode}
-                    readOnly
-                    placeholder="Select delivery location"
-                    required
-                    className={styles.readOnlyInput}
-                  />
-                </span>
-              </label>
-            </div>
-
-            <label className={styles.field}>
-              <span className={styles.label}>Landmark (Optional)</span>
-              <span className={styles.inputWrap}>
-                <FaBuilding className={styles.inputIcon} aria-hidden />
-                <input
-                  type="text"
-                  value={form.landmark}
-                  onChange={updateField("landmark")}
-                  placeholder="Near Lakshmi School"
-                />
               </span>
             </label>
           </section>

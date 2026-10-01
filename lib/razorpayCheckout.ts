@@ -40,6 +40,14 @@ type RazorpayCheckoutOptions = {
   retry?: {
     enabled?: boolean;
   };
+  method?: {
+    netbanking?: boolean;
+    card?: boolean;
+    upi?: boolean;
+    wallet?: boolean;
+    emi?: boolean;
+    paylater?: boolean;
+  };
   prefill?: {
     name?: string;
     email?: string;
@@ -52,6 +60,17 @@ type RazorpayCheckoutOptions = {
   config?: {
     display?: {
       hide?: Array<{ method?: string }>;
+      blocks?: Record<
+        string,
+        {
+          name?: string;
+          instruments?: Array<{ method?: string }>;
+        }
+      >;
+      sequence?: string[];
+      preferences?: {
+        show_default_blocks?: boolean;
+      };
     };
   };
   handler: (response: RazorpayCheckoutSuccess) => void;
@@ -78,6 +97,40 @@ declare global {
 }
 
 const CHECKOUT_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+const DEFAULT_PAYMENT_METHODS = {
+  card: true,
+  upi: true,
+  netbanking: true,
+  wallet: true,
+};
+
+const DEFAULT_DISPLAY_CONFIG = {
+  display: {
+    blocks: {
+      cards: {
+        name: "Cards",
+        instruments: [{ method: "card" }],
+      },
+      upi: {
+        name: "UPI",
+        instruments: [{ method: "upi" }],
+      },
+      netbanking: {
+        name: "Netbanking",
+        instruments: [{ method: "netbanking" }],
+      },
+      wallets: {
+        name: "Wallets",
+        instruments: [{ method: "wallet" }],
+      },
+    },
+    sequence: ["block.cards", "block.upi", "block.netbanking", "block.wallets"],
+    preferences: {
+      show_default_blocks: true,
+    },
+  },
+};
 
 export function isRazorpayTestKey(key: string) {
   return key.startsWith("rzp_test_");
@@ -154,6 +207,8 @@ export async function openRazorpayCheckout(
     };
 
     const razorpay = new RazorpayCheckout({
+      method: DEFAULT_PAYMENT_METHODS,
+      config: DEFAULT_DISPLAY_CONFIG,
       ...options,
       handler: (response) => {
         finish(() => resolve(response));

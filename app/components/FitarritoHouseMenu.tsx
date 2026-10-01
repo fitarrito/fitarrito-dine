@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   FaChevronDown,
@@ -19,17 +19,10 @@ import {
   resolveProteinImageUrl,
 } from "@lib/menuImages";
 import { isFitarritoHouseSalad } from "@lib/fitarritoHouseMenu";
+import { getAvailableProteinVariants } from "@lib/menuPricing";
 import type { menuItem, ProteinVariant, SizeVariant } from "@/types/types";
 import SaladCustomizeModal from "./SaladCustomizeModal";
 import styles from "./FitarritoHouseMenu.module.css";
-
-function getAvailableProteins(item: menuItem) {
-  return (
-    item.proteinVariants?.filter(
-      (protein) => protein.name.toLowerCase() !== "mutton",
-    ) ?? []
-  );
-}
 
 function formatRupee(amount: number) {
   return `₹${Math.round(amount)}`;
@@ -48,14 +41,22 @@ function FitarritoHouseCard({
   const orderWindow = useOrderWindow();
   const isSalad = isFitarritoHouseSalad(item);
   const sizeVariants = item.sizeVariants ?? [];
-  const availableProteins = getAvailableProteins(item);
-
   const [selectedSizeName, setSelectedSizeName] = useState<string>(
     sizeVariants[0]?.name ?? "",
   );
   const [selectedProteinName, setSelectedProteinName] = useState<string>("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const availableProteins = getAvailableProteinVariants(item, selectedSizeName);
+
+  useEffect(() => {
+    if (
+      selectedProteinName &&
+      !availableProteins.some((protein) => protein.name === selectedProteinName)
+    ) {
+      setSelectedProteinName("");
+    }
+  }, [availableProteins, selectedProteinName]);
 
   const selectedSizePrice = useMemo(() => {
     const selectedSize = sizeVariants.find(
@@ -64,6 +65,18 @@ function FitarritoHouseCard({
 
     return parseFloat(String(selectedSize?.price ?? item.price ?? 0));
   }, [item.price, selectedSizeName, sizeVariants]);
+
+  const selectSize = (sizeName: string) => {
+    setSelectedSizeName(sizeName);
+    setActionError(null);
+
+    if (
+      sizeName.trim().toLowerCase() === "mini" &&
+      selectedProteinName.trim().toLowerCase() === "prawn"
+    ) {
+      setSelectedProteinName("");
+    }
+  };
 
   const handleAddToCart = async () => {
     if (isSalad) {
@@ -124,7 +137,7 @@ function FitarritoHouseCard({
         key={size.name}
         type="button"
         className={`${styles.optionButton} ${active ? styles.optionButtonActive : ""}`}
-        onClick={() => setSelectedSizeName(size.name)}
+        onClick={() => selectSize(size.name)}
         aria-pressed={active}
       >
         <span className={styles.sizeName}>{size.name}</span>

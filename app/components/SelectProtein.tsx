@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   FaChevronDown,
@@ -10,7 +10,10 @@ import {
 } from "react-icons/fa";
 import { addToCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
-import { calculateMenuItemPricing } from "@lib/menuPricing";
+import {
+  calculateMenuItemPricing,
+  getAvailableProteinVariants,
+} from "@lib/menuPricing";
 import { useAppDispatch } from "@lib/hooks";
 import { useOrderWindow } from "@lib/useOrderWindow";
 import { resolveProteinImageUrl } from "@lib/menuImages";
@@ -41,20 +44,23 @@ export default function SelectProtein({
   );
   const hasSizeVariants = sizeVariants.length > 0;
 
-  const availableProteins = useMemo(
-    () =>
-      item.proteinVariants?.filter(
-        (protein) => protein.name.toLowerCase() !== "mutton",
-      ) ?? [],
-    [item.proteinVariants],
-  );
-
   const [selectedSizeName, setSelectedSizeName] = useState<string>(
     sizeVariants[0]?.name ?? "",
   );
   const [selectedProteinName, setSelectedProteinName] = useState<string>("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+
+  const availableProteins = getAvailableProteinVariants(item, selectedSizeName);
+
+  useEffect(() => {
+    if (
+      selectedProteinName &&
+      !availableProteins.some((protein) => protein.name === selectedProteinName)
+    ) {
+      setSelectedProteinName("");
+    }
+  }, [availableProteins, selectedProteinName]);
 
   const pricing = calculateMenuItemPricing(
     item,
@@ -67,6 +73,18 @@ export default function SelectProtein({
     : selectedProteinName
       ? `${item.title} (${selectedProteinName})`
       : item.title;
+
+  const selectSize = (sizeName: string) => {
+    setSelectedSizeName(sizeName);
+    setActionError(null);
+
+    if (
+      sizeName.trim().toLowerCase() === "mini" &&
+      selectedProteinName.trim().toLowerCase() === "prawn"
+    ) {
+      setSelectedProteinName("");
+    }
+  };
 
   const handleAddToCart = async () => {
     if (orderWindow === "closed" || isAdding) return;
@@ -122,7 +140,7 @@ export default function SelectProtein({
         key={size.name}
         type="button"
         className={`${styles.sizeCard} ${active ? styles.sizeCardActive : ""}`}
-        onClick={() => setSelectedSizeName(size.name)}
+        onClick={() => selectSize(size.name)}
         aria-pressed={active}
       >
         <span

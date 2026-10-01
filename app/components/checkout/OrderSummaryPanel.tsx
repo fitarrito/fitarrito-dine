@@ -18,7 +18,8 @@ import { removeCartItem } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { getDinnerCutoffLabel } from "@lib/orderCutoff";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
-import { applyRazorpayProcessingFee, formatRupees } from "@lib/razorpayFee";
+import { calculateOrderTotals, GST_LABEL } from "@lib/orderTotals";
+import { formatRupees } from "@lib/razorpayFee";
 import styles from "./OrderSummaryPanel.module.css";
 
 type OrderSummaryPanelProps = {
@@ -43,8 +44,8 @@ export default function OrderSummaryPanel({
   const subtotal = useAppSelector((state) => state.cart.totalAmt);
   const dinnerCutoff = getDinnerCutoffLabel();
   const isPayment = variant === "payment";
-  const paymentTotals = applyRazorpayProcessingFee(subtotal);
-  const totalAmount = paymentTotals.customerRupees;
+  const totals = calculateOrderTotals(subtotal);
+  const totalAmount = totals.total;
   const itemCount = cartItems.reduce((sum, item) => sum + Number(item.quantity), 0);
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
@@ -139,13 +140,17 @@ export default function OrderSummaryPanel({
           <span>{isPayment ? `Subtotal (${itemCount} items)` : "Subtotal"}</span>
           <span>{formatRupees(subtotal)}</span>
         </div>
-        {paymentTotals.processingFee > 0 ? (
+        <div className={styles.totalRow}>
+          <span>{GST_LABEL}</span>
+          <span>{formatRupees(totals.gst)}</span>
+        </div>
+        {totals.processingFee > 0 ? (
           <div className={styles.totalRow}>
             <span className={styles.feeLabel}>
               Payment processing fee
               <span className={styles.feeHint}>2% + GST</span>
             </span>
-            <span>{formatRupees(paymentTotals.processingFee)}</span>
+            <span>{formatRupees(totals.processingFee)}</span>
           </div>
         ) : null}
       </div>

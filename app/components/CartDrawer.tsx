@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FaArrowRight } from "react-icons/fa";
+import { FaArrowRight, FaSpinner } from "react-icons/fa";
 import { IoCloseSharp, IoTrash } from "react-icons/io5";
 import cartEmpty from "../../public/images/CartEmpty.svg";
 import { useAppSelector, useAppDispatch } from "@lib/hooks";
@@ -13,6 +13,8 @@ import {
 } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
+import { calculateOrderTotals, GST_LABEL } from "@lib/orderTotals";
+import { formatRupees } from "@lib/razorpayFee";
 import Image from "next/image";
 import Button from "./ui/Button";
 import styles from "./Drawer.module.css";
@@ -28,9 +30,11 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const totalAmt = useAppSelector((state) => state.cart.totalAmt);
   const cartError = useAppSelector((state) => state.cart.error);
+  const removingItemId = useAppSelector((state) => state.cart.removingItemId);
   const dispatch = useAppDispatch();
   const cartSession = getCartSession();
   const itemCount = cartItems.reduce((sum, item) => sum + Number(item.quantity), 0);
+  const totals = calculateOrderTotals(totalAmt);
 
   useEffect(() => {
     if (isOpen) {
@@ -140,15 +144,15 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
                           className={styles.quantityButton}
                           aria-label={`Decrease ${customization.title} quantity`}
                           onClick={() => {
-                            if (item.quantity > 1) {
-                              dispatch(
-                                updateCartQuantity({
-                                  id: item.id!,
-                                  quantity: item.quantity - 1,
-                                  session: cartSession,
-                                }),
-                              );
-                            }
+                            if (!item.id || item.quantity <= 1) return;
+
+                            dispatch(
+                              updateCartQuantity({
+                                id: item.id,
+                                quantity: item.quantity - 1,
+                                session: cartSession,
+                              }),
+                            );
                           }}
                         >
                           -
@@ -162,15 +166,17 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
                           type="button"
                           className={styles.quantityButton}
                           aria-label={`Increase ${customization.title} quantity`}
-                          onClick={() =>
+                          onClick={() => {
+                            if (!item.id) return;
+
                             dispatch(
                               updateCartQuantity({
-                                id: item.id!,
+                                id: item.id,
                                 quantity: item.quantity + 1,
                                 session: cartSession,
                               }),
-                            )
-                          }
+                            );
+                          }}
                         >
                           +
                         </button>
@@ -179,17 +185,29 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
                       <button
                         type="button"
                         className={styles.deleteButton}
-                        aria-label={`Remove ${customization.title}`}
-                        onClick={() =>
+                        aria-label={
+                          item.id === removingItemId
+                            ? `Removing ${customization.title}`
+                            : `Remove ${customization.title}`
+                        }
+                        aria-busy={item.id === removingItemId}
+                        disabled={!item.id || item.id === removingItemId}
+                        onClick={() => {
+                          if (!item.id || item.id === removingItemId) return;
+
                           dispatch(
                             removeCartItem({
-                              id: item.id!,
+                              id: item.id,
                               session: cartSession,
                             }),
-                          )
-                        }
+                          );
+                        }}
                       >
-                        <IoTrash />
+                        {item.id === removingItemId ? (
+                          <FaSpinner className={styles.spinner} aria-hidden />
+                        ) : (
+                          <IoTrash />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -204,11 +222,15 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
             <div className={styles.totals}>
               <div className={styles.totalRow}>
                 <span>Subtotal ({itemCount} items)</span>
-                <span>₹{totalAmt}</span>
+                <span>{formatRupees(totalAmt)}</span>
+              </div>
+              <div className={styles.totalRow}>
+                <span>{GST_LABEL}</span>
+                <span>{formatRupees(totals.gst)}</span>
               </div>
               <div className={styles.totalAmount}>
                 <span>Total</span>
-                <strong>₹{totalAmt}</strong>
+                <strong>{formatRupees(totals.total)}</strong>
               </div>
             </div>
 

@@ -10,7 +10,7 @@ import {
   isValidAmountPaise,
   parseAmountPaise,
 } from "@lib/razorpay";
-import { applyRazorpayProcessingFee } from "@lib/razorpayFee";
+import { calculateOrderTotals } from "@lib/orderTotals";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ async function resolveAmountPaise(body: {
       0,
     );
 
-    return { amount: applyRazorpayProcessingFee(rupees).customerPaise };
+    return { amount: calculateOrderTotals(rupees).customerPaise };
   }
 
   const amount = parseAmountPaise(body.amount);
@@ -57,7 +57,7 @@ async function resolveAmountPaise(body: {
   }
 
   return {
-    amount: applyRazorpayProcessingFee(amount / 100).customerPaise,
+    amount: calculateOrderTotals(amount / 100).customerPaise,
   };
 }
 

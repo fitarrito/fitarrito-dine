@@ -9,7 +9,6 @@ import {
   FaCcVisa,
   FaCreditCard,
   FaHome,
-  FaMapMarkerAlt,
   FaPen,
   FaPhone,
   FaShieldAlt,
@@ -38,7 +37,8 @@ import {
   PaymentCancelledError,
   PaymentFailedError,
 } from "@lib/razorpayCheckout";
-import { applyRazorpayProcessingFee, formatRupees } from "@lib/razorpayFee";
+import { formatRupees } from "@lib/razorpayFee";
+import { calculateOrderTotals } from "@lib/orderTotals";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import styles from "./payment.module.css";
 
@@ -54,12 +54,6 @@ function checkoutContact(mobileNumber: string) {
   const digits = mobileNumber.replace(/\D/g, "").slice(-10);
 
   return digits.length === 10 ? `+91${digits}` : mobileNumber.trim();
-}
-
-function isMobileBrowser() {
-  if (typeof navigator === "undefined") return false;
-
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
 export default function CheckoutPaymentPage() {
@@ -110,7 +104,6 @@ export default function CheckoutPaymentPage() {
       area: delivery.area,
       city: delivery.city,
       pincode: delivery.pincode,
-      landmark: delivery.landmark,
       deliveryInstructions: delivery.deliveryInstructions,
       paymentMethod: "razorpay",
       razorpayOrderId: paymentIds?.razorpayOrderId,
@@ -215,7 +208,7 @@ export default function CheckoutPaymentPage() {
         return;
       }
 
-      const amountPaise = Math.round(totalAmount * 100);
+      const amountPaise = calculateOrderTotals(totalAmount).customerPaise;
 
       if (amountPaise < 100) {
         throw new Error("Order total is too low to pay online.");
@@ -262,7 +255,6 @@ export default function CheckoutPaymentPage() {
         description: "Order payment",
         order_id: razorpayOrder.order_id,
         callback_url: `${window.location.origin}/api/razorpay/callback`,
-        redirect: isMobileBrowser(),
         timeout: 300,
         retry: { enabled: true },
         prefill: {
@@ -303,7 +295,7 @@ export default function CheckoutPaymentPage() {
   }
 
   const existingPayment = loadVerifiedPayment();
-  const payableAmount = applyRazorpayProcessingFee(totalAmount).customerRupees;
+  const payableAmount = calculateOrderTotals(totalAmount).total;
   const payLabel = existingPayment
     ? "Complete Order"
     : `Pay ${formatRupees(payableAmount)} Securely`;
@@ -327,7 +319,7 @@ export default function CheckoutPaymentPage() {
                 <span className={styles.homeIcon}>
                   <FaHome aria-hidden />
                 </span>
-                <h1 className={styles.title}>Delivery Address</h1>
+                <h1 className={styles.title}>Delivery Location</h1>
               </div>
               <button
                 type="button"
@@ -340,17 +332,7 @@ export default function CheckoutPaymentPage() {
             </header>
 
             <p className={styles.customerName}>{delivery.fullName}</p>
-            <p className={styles.addressLine}>
-              {delivery.address}
-              <br />
-              {delivery.area}, {delivery.city} - {delivery.pincode}
-            </p>
-            {delivery.landmark ? (
-              <p className={styles.metaRow}>
-                <FaMapMarkerAlt className={styles.metaIcon} aria-hidden />
-                {delivery.landmark}
-              </p>
-            ) : null}
+            <p className={styles.addressLine}>{delivery.area}</p>
             <p className={styles.metaRow}>
               <FaPhone className={styles.metaIcon} aria-hidden />
               {formatPhone(delivery.mobileNumber)}

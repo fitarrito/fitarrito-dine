@@ -14,6 +14,24 @@ export function findSizeVariant(
   );
 }
 
+export function getAvailableProteinVariants(
+  item: Pick<menuItem, "proteinVariants">,
+  selectedSize?: string | null,
+): ProteinVariant[] {
+  const isMini = selectedSize?.trim().toLowerCase() === "mini";
+
+  return (
+    item.proteinVariants?.filter((protein) => {
+      const name = protein.name.trim().toLowerCase();
+
+      if (name === "mutton") return false;
+      if (isMini && name === "prawn") return false;
+
+      return true;
+    }) ?? []
+  );
+}
+
 export function findProteinVariant(
   menuItemRow: menuItem,
   selectedProtein?: string | null,
