@@ -21,6 +21,7 @@ export type NewOrderEmailInput = {
   gst: number;
   total: number;
   paymentMethod: string;
+  confirmationUrl?: string;
 };
 
 function escapeHtml(value: unknown) {
@@ -73,6 +74,20 @@ function buildNewOrderEmailHtml(input: NewOrderEmailInput) {
       </tr>`;
     })
     .join("");
+  const confirmationButton = input.confirmationUrl
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
+        <tr>
+          <td align="center">
+            <a href="${escapeHtml(input.confirmationUrl)}" style="display:inline-block;background:#fc1e1e;color:#ffffff;text-decoration:none;font-size:16px;font-weight:800;padding:14px 28px;border-radius:10px;">
+              Confirm Order
+            </a>
+            <div style="margin-top:10px;color:#6b7280;font-size:12px;line-height:1.5;">
+              Staff only. This secure link expires in 7 days.
+            </div>
+          </td>
+        </tr>
+      </table>`
+    : "";
 
   return `<!DOCTYPE html>
 <html>
@@ -153,6 +168,7 @@ function buildNewOrderEmailHtml(input: NewOrderEmailInput) {
                 <div style="margin-top:16px;padding:14px 16px;border-radius:12px;background:#f9fafb;font-size:14px;color:#111827;">
                   <strong>Payment:</strong> ${escapeHtml(paymentLabel(input.paymentMethod))}
                 </div>
+                ${confirmationButton}
               </td>
             </tr>
             <tr>
