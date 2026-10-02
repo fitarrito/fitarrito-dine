@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import {
   getRazorpayConfig,
+  getRazorpayConfigDiagnostics,
+  razorpayConfigurationError,
   verifyRazorpayPaymentSignature,
 } from "@lib/razorpay";
 
@@ -12,8 +14,8 @@ export async function POST(request: Request) {
   if (!config) {
     return NextResponse.json(
       {
-        error:
-          "Razorpay is not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+        error: razorpayConfigurationError(),
+        missing: getRazorpayConfigDiagnostics().missing,
       },
       { status: 503 },
     );

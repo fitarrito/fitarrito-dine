@@ -1,4 +1,8 @@
+export type DeliveryAddressType = "selected_location" | "normal_address";
+
 export type CheckoutDelivery = {
+  addressType: DeliveryAddressType;
+  locationId: string;
   fullName: string;
   mobileNumber: string;
   address: string;
@@ -12,6 +16,8 @@ export type CheckoutDelivery = {
 const STORAGE_KEY = "fitarrito_checkout_delivery";
 
 export const EMPTY_CHECKOUT_DELIVERY: CheckoutDelivery = {
+  addressType: "selected_location",
+  locationId: "",
   fullName: "",
   mobileNumber: "",
   address: "",
@@ -45,6 +51,10 @@ export function loadCheckoutDelivery(): CheckoutDelivery | null {
     return {
       ...EMPTY_CHECKOUT_DELIVERY,
       ...parsed,
+      addressType:
+        parsed.addressType === "normal_address"
+          ? "normal_address"
+          : "selected_location",
     };
   } catch {
     return null;
@@ -62,9 +72,29 @@ export function clearCheckoutDelivery() {
 }
 
 export function isCheckoutDeliveryComplete(data: CheckoutDelivery) {
-  return Boolean(
-    data.fullName.trim() &&
-      data.mobileNumber.trim() &&
-      data.area.trim(),
-  );
+  const hasContact = Boolean(data.fullName.trim() && data.mobileNumber.trim());
+
+  if (!hasContact) return false;
+
+  if (data.addressType === "normal_address") {
+    return Boolean(
+      data.address.trim() &&
+        data.area.trim() &&
+        data.city.trim() &&
+        data.pincode.trim(),
+    );
+  }
+
+  return Boolean(data.area.trim());
+}
+
+export function deliveryDisplayLocation(data: CheckoutDelivery) {
+  if (data.addressType !== "normal_address") {
+    return data.area.trim();
+  }
+
+  return [data.address, data.area, data.city, data.pincode, data.landmark]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(", ");
 }

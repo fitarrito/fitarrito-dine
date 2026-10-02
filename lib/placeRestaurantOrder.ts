@@ -4,6 +4,8 @@ export type PlaceRestaurantOrderInput = {
   sessionId: string;
   customerName: string;
   customerPhone: string;
+  deliveryAddressType?: "selected_location" | "normal_address";
+  locationId?: string;
   addressLine1: string;
   area: string;
   city: string;

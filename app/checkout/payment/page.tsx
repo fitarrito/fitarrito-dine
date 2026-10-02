@@ -19,6 +19,7 @@ import { fetchCart, clearCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { fetchJson } from "@lib/apiFetch";
 import {
+  deliveryDisplayLocation,
   isCheckoutDeliveryComplete,
   loadCheckoutDelivery,
   clearCheckoutDelivery,
@@ -102,10 +103,13 @@ export default function CheckoutPaymentPage() {
       sessionId: session.sessionId,
       customerName: delivery.fullName,
       customerPhone: normalizeIndianPhone(delivery.mobileNumber),
+      deliveryAddressType: delivery.addressType,
+      locationId: delivery.locationId,
       addressLine1: delivery.address,
       area: delivery.area,
       city: delivery.city,
       pincode: delivery.pincode,
+      landmark: delivery.landmark,
       deliveryInstructions: delivery.deliveryInstructions,
       paymentMethod: "razorpay",
       razorpayOrderId: paymentIds?.razorpayOrderId,
@@ -249,7 +253,7 @@ export default function CheckoutPaymentPage() {
 
       if (!checkoutKey) {
         throw new Error(
-          "Razorpay is not configured. Add RAZORPAY_KEY_ID and NEXT_PUBLIC_RAZORPAY_KEY_ID.",
+          "Razorpay is not configured. Missing NEXT_PUBLIC_RAZORPAY_KEY_ID.",
         );
       }
 
@@ -338,7 +342,7 @@ export default function CheckoutPaymentPage() {
             </header>
 
             <p className={styles.customerName}>{delivery.fullName}</p>
-            <p className={styles.addressLine}>{delivery.area}</p>
+            <p className={styles.addressLine}>{deliveryDisplayLocation(delivery)}</p>
             <p className={styles.metaRow}>
               <FaPhone className={styles.metaIcon} aria-hidden />
               {formatPhone(delivery.mobileNumber)}

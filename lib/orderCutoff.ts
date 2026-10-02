@@ -52,6 +52,9 @@ export function getDinnerCutoffLabel() {
   return formatCutoffTime(getActiveCutoffs().dinner);
 }
 
+const OVERNIGHT_OPEN_MINUTES = 8 * 60;
+const OVERNIGHT_CLOSE_MINUTES = 22 * 60;
+
 function toMinutes(hour: number, minute: number) {
   return hour * 60 + minute;
 }
@@ -68,11 +71,24 @@ function getChennaiMinutes(now: Date) {
   return toMinutes(Number.isFinite(hour) ? hour : 0, Number.isFinite(minute) ? minute : 0);
 }
 
+export function isOvernightClosed(now = new Date()) {
+  const totalMinutes = getChennaiMinutes(now);
+
+  return (
+    totalMinutes < OVERNIGHT_OPEN_MINUTES ||
+    totalMinutes >= OVERNIGHT_CLOSE_MINUTES
+  );
+}
+
 export function getOrderWindow(now = new Date()): OrderWindow {
   const cutoffs = getActiveCutoffs();
   const totalMinutes = getChennaiMinutes(now);
   const lunchCutoff = toMinutes(cutoffs.lunch.hour, cutoffs.lunch.minute);
   const dinnerCutoff = toMinutes(cutoffs.dinner.hour, cutoffs.dinner.minute);
+
+  if (isOvernightClosed(now)) {
+    return "closed";
+  }
 
   if (totalMinutes < lunchCutoff) {
     return "lunch";

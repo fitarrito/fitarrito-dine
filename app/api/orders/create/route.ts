@@ -3,20 +3,25 @@ import {
   getSupabaseAdminClient,
   getSupabaseAdminConfig,
 } from "@lib/getSupabaseAdmin";
-import { getOrderWindow } from "@lib/orderCutoff";
+import { getOrderWindow, isOvernightClosed } from "@lib/orderCutoff";
 import {
   isValidIndianMobile,
   normalizeIndianPhone,
 } from "@lib/normalizePhone";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { sendNewOrderEmail } from "@lib/email/resend";
-import { getDeliveryArea } from "@lib/deliveryAreas";
+import { getDeliveryArea, getDeliveryAreaById } from "@lib/deliveryAreas";
 import { calculateOrderTotals } from "@lib/orderTotals";
 import {
   createStaffOrderConfirmationToken,
   createStaffOrderConfirmationUrl,
 } from "@lib/staffOrderConfirmation";
-import { getRazorpayConfig, verifyRazorpayPayment } from "@lib/razorpay";
+import {
+  getRazorpayConfig,
+  getRazorpayConfigDiagnostics,
+  razorpayConfigurationError,
+  verifyRazorpayPayment,
+} from "@lib/razorpay";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +53,13 @@ export async function POST(request: Request) {
       sessionId,
       customerName,
       customerPhone,
+      deliveryAddressType,
+      locationId,
+      addressLine1,
       area,
+      city,
+      pincode,
+      landmark,
       deliveryInstructions,
       paymentMethod = "razorpay",
       razorpayOrderId,
@@ -86,29 +97,52 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!area?.trim()) {
-      return NextResponse.json(
-        { error: "Please select your delivery location." },
-        { status: 400 },
-      );
-    }
+    const addressType =
+      deliveryAddressType === "normal_address"
+        ? "normal_address"
+        : "selected_location";
+    const selectedArea =
+      addressType === "selected_location"
+        ? getDeliveryAreaById(String(locationId ?? "")) ??
+          getDeliveryArea(String(area ?? "").trim())
+        : undefined;
 
-    const selectedArea = getDeliveryArea(area.trim());
-
-    if (!selectedArea) {
+    if (addressType === "selected_location" && !selectedArea) {
       return NextResponse.json(
         { error: "Please select a valid delivery location." },
         { status: 400 },
       );
     }
 
-    const deliveryLocation = selectedArea.name;
+    const customAddress = String(addressLine1 ?? "").trim();
+    const customArea = String(area ?? "").trim();
+    const customCity = String(city ?? "").trim();
+    const customPincode = String(pincode ?? "").trim();
+    const customLandmark = String(landmark ?? "").trim();
+
+    if (
+      addressType === "normal_address" &&
+      (!customAddress || !customArea || !customCity || !customPincode)
+    ) {
+      return NextResponse.json(
+        { error: "Please enter your delivery address." },
+        { status: 400 },
+      );
+    }
+
+    const deliveryLocation =
+      addressType === "selected_location"
+        ? selectedArea!.name
+        : [customAddress, customArea, customCity, customPincode, customLandmark]
+            .filter(Boolean)
+            .join(", ");
 
     if (getOrderWindow() === "closed") {
       return NextResponse.json(
         {
-          error:
-            "Today's on-demand ordering has closed. Please place your order tomorrow.",
+          error: isOvernightClosed()
+            ? "Ordering is closed from 10:00 PM to 8:00 AM. Please place your order after 8:00 AM."
+            : "Today's on-demand ordering has closed. Please place your order tomorrow.",
         },
         { status: 400 },
       );
@@ -164,7 +198,10 @@ export async function POST(request: Request) {
 
       if (!getRazorpayConfig()) {
         return NextResponse.json(
-          { error: "Razorpay payment verification is unavailable." },
+          {
+            error: razorpayConfigurationError(),
+            missing: getRazorpayConfigDiagnostics().missing,
+          },
           { status: 503 },
         );
       }
@@ -205,6 +242,25 @@ export async function POST(request: Request) {
       customer_name: customerName.trim(),
       customer_phone: normalizedPhone,
       area: deliveryLocation,
+      delivery_address_type: addressType,
+      delivery_location_id:
+        addressType === "selected_location" ? selectedArea!.id : null,
+      delivery_location_name:
+        addressType === "selected_location" ? selectedArea!.name : null,
+      delivery_address:
+        addressType === "normal_address" ? customAddress : null,
+      delivery_area:
+        addressType === "selected_location" ? selectedArea!.name : customArea,
+      delivery_city:
+        addressType === "selected_location" ? "Chennai" : customCity,
+      delivery_pincode:
+        addressType === "selected_location"
+          ? selectedArea!.pincode
+          : customPincode,
+      delivery_landmark:
+        addressType === "normal_address" && customLandmark
+          ? customLandmark
+          : null,
       delivery_instructions: deliveryInstructions?.trim() || null,
       subtotal,
       delivery_charge: deliveryCharge,

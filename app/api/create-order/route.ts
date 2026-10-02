@@ -6,9 +6,12 @@ import {
 import {
   getRazorpayClient,
   getRazorpayConfig,
+  getRazorpayConfigDiagnostics,
   getRazorpayError,
   isValidAmountPaise,
+  logRazorpayConfig,
   parseAmountPaise,
+  razorpayConfigurationError,
 } from "@lib/razorpay";
 import { calculateOrderTotals } from "@lib/orderTotals";
 
@@ -65,13 +68,21 @@ export async function POST(request: Request) {
   const config = getRazorpayConfig();
 
   if (!config) {
+    const diagnostics = getRazorpayConfigDiagnostics();
+
     return NextResponse.json(
       {
-        error:
-          "Razorpay is not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+        error: razorpayConfigurationError(),
+        missing: diagnostics.missing,
       },
       { status: 503 },
     );
+  }
+
+  const diagnostics = getRazorpayConfigDiagnostics();
+
+  if (!diagnostics.modesMatch) {
+    logRazorpayConfig("server and public key modes differ");
   }
 
   try {

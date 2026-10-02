@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  FaBuilding,
   FaHome,
   FaLeaf,
   FaMapMarkerAlt,
@@ -14,7 +15,11 @@ import CheckoutSteps from "@/components/checkout/CheckoutSteps";
 import OrderSummaryPanel from "@/components/checkout/OrderSummaryPanel";
 import { fetchCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
-import { DELIVERY_AREAS, getDeliveryArea } from "@lib/deliveryAreas";
+import {
+  DELIVERY_AREAS,
+  getDeliveryAreaById,
+  type DeliveryArea,
+} from "@lib/deliveryAreas";
 import {
   isValidIndianMobile,
   normalizeIndianPhone,
@@ -24,6 +29,7 @@ import {
   loadCheckoutDelivery,
   saveCheckoutDelivery,
   type CheckoutDelivery,
+  type DeliveryAddressType,
 } from "@lib/checkoutDelivery";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import styles from "./checkout.module.css";
@@ -60,15 +66,30 @@ export default function CheckoutPage() {
       setFormError(null);
     };
 
-  const updateDeliveryArea = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedArea = getDeliveryArea(event.target.value);
-
+  const selectAddressType = (addressType: DeliveryAddressType) => {
     setForm((current) => ({
       ...current,
-      area: selectedArea?.name ?? "",
-      address: selectedArea?.name ?? "",
+      addressType,
+      locationId: addressType === "selected_location" ? current.locationId : "",
+      area: addressType === "selected_location" ? current.area : "",
+      address: addressType === "selected_location" ? current.address : "",
+      pincode: addressType === "selected_location" ? current.pincode : "",
+      landmark: addressType === "selected_location" ? "" : current.landmark,
       city: current.city || "Chennai",
-      pincode: selectedArea?.pincode ?? "",
+    }));
+    setFormError(null);
+  };
+
+  const selectDeliveryLocation = (location: DeliveryArea) => {
+    setForm((current) => ({
+      ...current,
+      addressType: "selected_location",
+      locationId: location.id,
+      area: location.name,
+      address: location.name,
+      city: "Chennai",
+      pincode: location.pincode,
+      landmark: "",
     }));
     setFormError(null);
   };
@@ -83,16 +104,23 @@ export default function CheckoutPage() {
   };
 
   const handleContinueToPayment = () => {
-    const requiredFields: Array<keyof CheckoutDelivery> = [
-      "fullName",
-      "mobileNumber",
-      "area",
-    ];
-
-    const missingField = requiredFields.find((field) => !form[field].trim());
-
-    if (missingField) {
+    if (!form.fullName.trim() || !form.mobileNumber.trim()) {
       setFormError("Please fill in all required delivery details.");
+      return;
+    }
+
+    if (form.addressType === "normal_address") {
+      if (
+        !form.address.trim() ||
+        !form.area.trim() ||
+        !form.city.trim() ||
+        !form.pincode.trim()
+      ) {
+        setFormError("Please fill in your delivery address.");
+        return;
+      }
+    } else if (!getDeliveryAreaById(form.locationId)) {
+      setFormError("Please select a delivery location.");
       return;
     }
 
@@ -177,34 +205,143 @@ export default function CheckoutPage() {
           <section className={styles.section}>
             <header className={styles.sectionHeader}>
               <span className={styles.sectionIconBlue}>
-                <FaHome aria-hidden />
+                <FaMapMarkerAlt aria-hidden />
               </span>
               <div>
-                <h2 className={styles.sectionTitle}>Delivery Location</h2>
+                <h2 className={styles.sectionTitle}>Delivery Details</h2>
+                <p className={styles.sectionSubtitle}>
+                  Choose where you want your order delivered.
+                </p>
               </div>
             </header>
 
-            <label className={styles.field}>
-              <span className={styles.label}>
-                Delivery Location <span className={styles.required}>*</span>
-              </span>
-              <span className={styles.inputWrap}>
-                <FaMapMarkerAlt className={styles.inputIcon} aria-hidden />
-                <select
-                  value={form.area}
-                  onChange={updateDeliveryArea}
-                  required
-                  className={form.area ? styles.select : styles.selectPlaceholder}
-                >
-                  <option value="">Select delivery location</option>
-                  {DELIVERY_AREAS.map((item) => (
-                    <option key={item.name} value={item.name}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </span>
-            </label>
+            <div className={styles.addressTypes} role="radiogroup" aria-label="Delivery address type">
+              <button
+                type="button"
+                className={`${styles.addressType} ${form.addressType === "selected_location" ? styles.addressTypeSelected : ""}`}
+                onClick={() => selectAddressType("selected_location")}
+                aria-pressed={form.addressType === "selected_location"}
+              >
+                <span className={styles.addressTypeIcon} aria-hidden>
+                  <FaBuilding />
+                </span>
+                <span>
+                  <span className={styles.addressTypeTitle}>College / Office / Listed Location</span>
+                  <span className={styles.addressTypeHint}>Select from our delivery locations</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`${styles.addressType} ${form.addressType === "normal_address" ? styles.addressTypeSelected : ""}`}
+                onClick={() => selectAddressType("normal_address")}
+                aria-pressed={form.addressType === "normal_address"}
+              >
+                <span className={styles.addressTypeIcon} aria-hidden>
+                  <FaHome />
+                </span>
+                <span>
+                  <span className={styles.addressTypeTitle}>Other Address</span>
+                  <span className={styles.addressTypeHint}>Enter your own delivery address</span>
+                </span>
+              </button>
+            </div>
+
+            {form.addressType === "selected_location" ? (
+              <div className={styles.locationList} role="radiogroup" aria-label="Delivery location">
+                {DELIVERY_AREAS.map((location) => {
+                  const selected = form.locationId === location.id;
+
+                  return (
+                    <label
+                      className={`${styles.locationOption} ${selected ? styles.locationOptionSelected : ""}`}
+                      key={location.id}
+                    >
+                      <input
+                        type="radio"
+                        name="deliveryLocation"
+                        value={location.id}
+                        checked={selected}
+                        onChange={() => selectDeliveryLocation(location)}
+                      />
+                      <span>
+                        <span className={styles.locationName}>{location.name}</span>
+                        <span className={styles.locationMeta}>Chennai {location.pincode}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={styles.addressFields}>
+                <label className={styles.field}>
+                  <span className={styles.label}>
+                    Address <span className={styles.required}>*</span>
+                  </span>
+                  <span className={styles.inputWrap}>
+                    <FaHome className={styles.inputIcon} aria-hidden />
+                    <input
+                      type="text"
+                      value={form.address}
+                      onChange={updateField("address")}
+                      placeholder="House no., street, building"
+                      required
+                    />
+                  </span>
+                </label>
+                <div className={styles.fieldGridTwo}>
+                  <label className={styles.field}>
+                    <span className={styles.label}>
+                      Area <span className={styles.required}>*</span>
+                    </span>
+                    <input
+                      className={styles.plainInput}
+                      type="text"
+                      value={form.area}
+                      onChange={updateField("area")}
+                      placeholder="Area"
+                      required
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.label}>
+                      City <span className={styles.required}>*</span>
+                    </span>
+                    <input
+                      className={styles.plainInput}
+                      type="text"
+                      value={form.city}
+                      onChange={updateField("city")}
+                      placeholder="City"
+                      required
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.label}>
+                      Pincode <span className={styles.required}>*</span>
+                    </span>
+                    <input
+                      className={styles.plainInput}
+                      type="text"
+                      inputMode="numeric"
+                      value={form.pincode}
+                      onChange={updateField("pincode")}
+                      placeholder="Pincode"
+                      required
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span className={styles.label}>Landmark</span>
+                    <input
+                      className={styles.plainInput}
+                      type="text"
+                      value={form.landmark}
+                      onChange={updateField("landmark")}
+                      placeholder="Landmark"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
           </section>
 
           <section className={styles.instructionsSection}>

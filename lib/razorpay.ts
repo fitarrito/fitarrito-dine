@@ -3,9 +3,72 @@ import Razorpay from "razorpay";
 
 const MIN_AMOUNT_PAISE = 100;
 
+type RazorpayKeyMode = "test" | "live" | "unset" | "unknown";
+
+function readEnv(name: string) {
+  return process.env[name]?.trim() ?? "";
+}
+
+function razorpayKeyMode(key: string): RazorpayKeyMode {
+  if (!key) return "unset";
+  if (key.startsWith("rzp_test_")) return "test";
+  if (key.startsWith("rzp_live_")) return "live";
+  return "unknown";
+}
+
+export function getRazorpayConfigDiagnostics() {
+  const keyId = readEnv("RAZORPAY_KEY_ID");
+  const keySecret = readEnv("RAZORPAY_KEY_SECRET");
+  const publicKeyId = readEnv("NEXT_PUBLIC_RAZORPAY_KEY_ID");
+  const keyIdMode = razorpayKeyMode(keyId);
+  const publicKeyIdMode = razorpayKeyMode(publicKeyId);
+  const missing = [
+    keyId ? null : "RAZORPAY_KEY_ID",
+    keySecret ? null : "RAZORPAY_KEY_SECRET",
+  ].filter((name): name is string => Boolean(name));
+
+  return {
+    RAZORPAY_KEY_ID: Boolean(keyId),
+    RAZORPAY_KEY_SECRET: Boolean(keySecret),
+    NEXT_PUBLIC_RAZORPAY_KEY_ID: Boolean(publicKeyId),
+    keyIdMode,
+    publicKeyIdMode,
+    modesMatch:
+      keyIdMode === "unset" ||
+      publicKeyIdMode === "unset" ||
+      keyIdMode === publicKeyIdMode,
+    missing,
+  };
+}
+
+export function logRazorpayConfig(context: string) {
+  const diagnostics = getRazorpayConfigDiagnostics();
+
+  console.error(`Razorpay configuration check (${context}):`, {
+    RAZORPAY_KEY_ID: diagnostics.RAZORPAY_KEY_ID,
+    RAZORPAY_KEY_SECRET: diagnostics.RAZORPAY_KEY_SECRET,
+    NEXT_PUBLIC_RAZORPAY_KEY_ID: diagnostics.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    keyIdMode: diagnostics.keyIdMode,
+    publicKeyIdMode: diagnostics.publicKeyIdMode,
+    modesMatch: diagnostics.modesMatch,
+    missing: diagnostics.missing,
+  });
+
+  return diagnostics;
+}
+
+export function razorpayConfigurationError() {
+  const diagnostics = logRazorpayConfig("missing server credentials");
+  const missing = diagnostics.missing.length
+    ? diagnostics.missing.join(" and ")
+    : "RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET";
+
+  return `Razorpay is not configured. Missing ${missing}.`;
+}
+
 export function getRazorpayConfig() {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const keyId = readEnv("RAZORPAY_KEY_ID");
+  const keySecret = readEnv("RAZORPAY_KEY_SECRET");
 
   if (!keyId || !keySecret) {
     return null;
@@ -18,9 +81,7 @@ export function getRazorpayClient() {
   const config = getRazorpayConfig();
 
   if (!config) {
-    throw new Error(
-      "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
-    );
+    throw new Error(razorpayConfigurationError());
   }
 
   return new Razorpay({

@@ -196,7 +196,13 @@ export default function StaffDashboardPage() {
   if (!authenticated) {
     return (
       <section className={styles.loginCard}>
-        <Image src={logo} alt="Fitarrito" width={48} height={48} />
+        <Image
+          className={styles.logo}
+          src={logo}
+          alt="Fitarrito"
+          width={48}
+          height={48}
+        />
         <h1>Staff orders</h1>
         <p>Sign in to view website on-demand orders.</p>
         <form
