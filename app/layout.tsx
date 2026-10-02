@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { Providers } from "./provider";
-import Header from "./components/Header";
+import SiteChrome from "./components/SiteChrome";
+import { isStaffHostHeaderList } from "@lib/staffHost";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -18,11 +20,18 @@ export const metadata: Metadata = {
   description: "Order fresh Mexican and Pan Asian meals for dine-in.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const headerStore = await headers();
+  const isStaffSite = isStaffHostHeaderList([
+    headerStore.get("x-forwarded-host"),
+    headerStore.get("x-vercel-forwarded-host"),
+    headerStore.get("host"),
+  ]);
+
   return (
     <html
       lang="en"
@@ -32,12 +41,7 @@ export default function RootLayout({
     >
       <body>
         <Providers>
-          <div className="flex flex-col">
-            <Header />
-            <main className="flex flex-col w-full flex-1 m-4 sm:m-8 lg:m-10 pt-25">
-              {children}
-            </main>
-          </div>
+          <SiteChrome isStaffHost={isStaffSite}>{children}</SiteChrome>
         </Providers>
       </body>
     </html>

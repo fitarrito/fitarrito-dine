@@ -61,6 +61,19 @@ Estimated waiting time: ${input.preparationTime}.
 Thank you for choosing Fitarrito! ❤️`;
 }
 
+export function formatCustomerOrderPreparedMessage(input: {
+  customerName: string;
+  orderId: string | number;
+}) {
+  const customerName = input.customerName.trim() || "there";
+
+  return `Hi ${customerName}! 👋
+
+Your Fitarrito order #${input.orderId} has been prepared by our kitchen. 🎉
+
+Thank you for choosing Fitarrito! ❤️`;
+}
+
 export function createCustomerOrderWhatsAppLink(input: {
   customerName: string;
   customerPhone: string;
@@ -79,6 +92,21 @@ export function createCustomerOrderWhatsAppLink(input: {
       orderId: input.orderId,
       preparationTime: input.preparationTime,
     }),
+    phone,
+  );
+}
+
+export function createCustomerPreparedWhatsAppLink(input: {
+  customerName: string;
+  customerPhone: string;
+  orderId: string | number;
+}) {
+  const phone = normalizeCustomerWhatsAppPhone(input.customerPhone);
+
+  if (!phone) return null;
+
+  return createWhatsAppOrderLink(
+    formatCustomerOrderPreparedMessage(input),
     phone,
   );
 }
