@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
-import { FaWhatsapp } from "react-icons/fa";
+import { FaSyncAlt, FaWhatsapp } from "react-icons/fa";
 import logo from "../../../public/images/logo.svg";
+import emptyOrders from "../../../public/images/staff-empty-orders.png";
 import { fetchJson } from "@lib/apiFetch";
 import { formatRupees } from "@lib/razorpayFee";
 import {
@@ -29,6 +30,7 @@ type StaffOrder = {
   paymentStatus: string;
   status: string;
   createdAt?: string | null;
+  updatedAt?: string | null;
   preparationLabel?: string | null;
   items: OrderItem[];
 };
@@ -42,6 +44,69 @@ type Notification = {
 };
 
 type StatusFilter = "active" | "pending" | "confirmed" | "preparing";
+type LiveState = "connecting" | "live" | "reconnecting";
+
+const STATUS_RANK: Record<string, number> = {
+  pending: 1,
+  confirmed: 2,
+  preparing: 3,
+  delivered: 4,
+  cancelled: 5,
+};
+
+function statusRank(status: string) {
+  return STATUS_RANK[status] ?? 0;
+}
+
+function preferStaffOrder(existing: StaffOrder, incoming: StaffOrder) {
+  const items = incoming.items.length > 0 ? incoming.items : existing.items;
+  const incomingRank = statusRank(incoming.status);
+  const existingRank = statusRank(existing.status);
+
+  if (incomingRank < existingRank) {
+    return {
+      ...incoming,
+      status: existing.status,
+      preparationLabel: existing.preparationLabel,
+      updatedAt: existing.updatedAt,
+      items,
+    };
+  }
+
+  const existingTime = Date.parse(existing.updatedAt ?? "") || 0;
+  const incomingTime = Date.parse(incoming.updatedAt ?? "") || 0;
+
+  if (incomingRank === existingRank && incomingTime < existingTime) {
+    return { ...existing, items };
+  }
+
+  return { ...incoming, items };
+}
+
+function mergeStaffOrder(current: StaffOrder[], incoming: StaffOrder) {
+  if (incoming.status === "cancelled" || incoming.status === "delivered") {
+    return current.filter((order) => String(order.id) !== String(incoming.id));
+  }
+
+  const index = current.findIndex(
+    (order) => String(order.id) === String(incoming.id),
+  );
+
+  if (index === -1) return [incoming, ...current];
+
+  const orders = current.slice();
+  orders[index] = preferStaffOrder(current[index], incoming);
+
+  return orders;
+}
+
+function mergeOrderList(current: StaffOrder[], incoming: StaffOrder[]) {
+  return incoming.map((order) => {
+    const existing = current.find((item) => String(item.id) === String(order.id));
+
+    return existing ? preferStaffOrder(existing, order) : order;
+  });
+}
 
 function paymentLabel(method: string) {
   const value = method.toLowerCase();
@@ -72,11 +137,12 @@ export default function StaffDashboardPage() {
     Record<string, PreparationMinutes>
   >({});
   const [notices, setNotices] = useState<Record<string, Notification>>({});
+  const [liveState, setLiveState] = useState<LiveState>("connecting");
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     const result = await fetchJson<{ orders: StaffOrder[] }>("/api/staff/orders");
-    setOrders(result.orders);
-  };
+    setOrders((current) => mergeOrderList(current, result.orders));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,17 +175,84 @@ export default function StaffDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadOrders]);
 
   useEffect(() => {
     if (!authenticated) return;
 
+    let source: EventSource | null = null;
+    let stopped = false;
+    let retryId = 0;
+    let attempt = 0;
+
+    const connect = () => {
+      source = new EventSource("/api/staff/orders/stream");
+
+      source.onmessage = (event) => {
+        const payload = JSON.parse(event.data) as {
+          type?: string;
+          order?: StaffOrder;
+          orderId?: string | number;
+          message?: string;
+        };
+
+        if (payload.type === "ready") {
+          attempt = 0;
+          setLiveState("live");
+          setError((current) =>
+            current?.includes("Live updates") || current?.includes("refresh orders")
+              ? null
+              : current,
+          );
+          return;
+        }
+
+        if (payload.type === "order" && payload.order) {
+          setOrders((current) => mergeStaffOrder(current, payload.order as StaffOrder));
+          return;
+        }
+
+        if (payload.type === "remove" && payload.orderId != null) {
+          setOrders((current) =>
+            current.filter((order) => String(order.id) !== String(payload.orderId)),
+          );
+          return;
+        }
+
+        if (payload.type === "error") {
+          setLiveState("reconnecting");
+          setError(payload.message ?? "Live updates disconnected.");
+        }
+      };
+
+      source.onerror = () => {
+        setLiveState("reconnecting");
+        source?.close();
+        source = null;
+
+        if (stopped) return;
+
+        const delay = Math.min(15000, 1000 * 2 ** attempt);
+        attempt += 1;
+        retryId = window.setTimeout(connect, delay);
+      };
+    };
+
+    connect();
+
     const intervalId = window.setInterval(() => {
-      void loadOrders().catch(() => undefined);
+      void loadOrders().catch(() => {
+        setError("Unable to refresh orders. Live updates will keep trying.");
+      });
     }, 20000);
 
-    return () => window.clearInterval(intervalId);
-  }, [authenticated]);
+    return () => {
+      stopped = true;
+      source?.close();
+      window.clearTimeout(retryId);
+      window.clearInterval(intervalId);
+    };
+  }, [authenticated, loadOrders]);
 
   const signIn = async () => {
     setError(null);
@@ -147,8 +280,10 @@ export default function StaffDashboardPage() {
     setError(null);
 
     try {
+      const preparationMinutes = preparationByOrder[String(order.id)];
       const result = await fetchJson<{
         status: string;
+        updatedAt?: string | null;
         notification: Notification;
       }>("/api/staff/orders/status", {
         method: "POST",
@@ -156,15 +291,36 @@ export default function StaffDashboardPage() {
         body: JSON.stringify({
           orderId: order.id,
           action,
-          preparationMinutes: preparationByOrder[String(order.id)],
+          preparationMinutes,
         }),
       });
 
+      const savedStatus = result.status;
+      const preparationLabel =
+        PREPARATION_ESTIMATES.find((estimate) => estimate.minutes === preparationMinutes)
+          ?.label ?? order.preparationLabel;
+
+      setOrders((current) =>
+        mergeStaffOrder(current, {
+          ...order,
+          status: savedStatus,
+          updatedAt: result.updatedAt ?? new Date().toISOString(),
+          preparationLabel:
+            savedStatus === "confirmed" ? preparationLabel : order.preparationLabel,
+        }),
+      );
       setNotices((current) => ({
         ...current,
         [String(order.id)]: result.notification,
       }));
-      await loadOrders();
+
+      if (savedStatus === "confirmed" || savedStatus === "preparing") {
+        setFilter(savedStatus);
+      }
+
+      await loadOrders().catch(() => {
+        setError("The order was updated. Refresh if it does not appear in the new tab.");
+      });
     } catch (updateError) {
       setError(
         updateError instanceof Error
@@ -177,7 +333,7 @@ export default function StaffDashboardPage() {
   };
 
   const visibleOrders = orders.filter((order) =>
-    filter === "active" ? true : order.status === filter,
+    filter === "active" ? order.status === "pending" : order.status === filter,
   );
 
   if (loading) {
@@ -272,7 +428,45 @@ export default function StaffDashboardPage() {
       {error ? <p className={styles.error}>{error}</p> : null}
 
       {visibleOrders.length === 0 ? (
-        <p className={styles.empty}>No on-demand orders in this view.</p>
+        <div className={styles.emptyState}>
+          <Image
+            className={styles.emptyArt}
+            src={emptyOrders}
+            alt=""
+            width={280}
+            height={196}
+            priority
+          />
+          <h2>All caught up!</h2>
+          <p>
+            {filter === "active"
+              ? "No new orders right now. New website orders will appear here automatically."
+              : "No orders in this view. New website orders will appear here automatically."}
+          </p>
+          <p className={styles.listening}>
+            <span
+              className={liveState === "live" ? styles.dot : styles.dotPaused}
+              aria-hidden
+            />
+            {liveState === "live"
+              ? "Listening for new orders"
+              : liveState === "connecting"
+                ? "Connecting..."
+                : "Reconnecting"}
+          </p>
+          <p className={styles.hint}>Keep this dashboard open while you take orders.</p>
+          <button
+            className={styles.refresh}
+            type="button"
+            onClick={() => {
+              void loadOrders().catch(() => {
+                setError("Unable to refresh orders. Live updates will keep trying.");
+              });
+            }}
+          >
+            <FaSyncAlt aria-hidden /> Refresh orders
+          </button>
+        </div>
       ) : (
         <div className={styles.orders}>
           {visibleOrders.map((order) => {
@@ -309,6 +503,9 @@ export default function StaffDashboardPage() {
                   </div>
                 </div>
 
+                {order.items.length === 0 ? (
+                  <p className={styles.meta}>Loading items...</p>
+                ) : null}
                 {order.items.map((item) => (
                   <div className={styles.item} key={item.id}>
                     <div>

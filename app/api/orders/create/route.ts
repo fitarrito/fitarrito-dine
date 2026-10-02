@@ -9,13 +9,8 @@ import {
   normalizeIndianPhone,
 } from "@lib/normalizePhone";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
-import { sendNewOrderEmail } from "@lib/email/resend";
 import { getDeliveryArea, getDeliveryAreaById } from "@lib/deliveryAreas";
 import { calculateOrderTotals } from "@lib/orderTotals";
-import {
-  createStaffOrderConfirmationToken,
-  createStaffOrderConfirmationUrl,
-} from "@lib/staffOrderConfirmation";
 import {
   getRazorpayConfig,
   getRazorpayConfigDiagnostics,
@@ -348,53 +343,6 @@ export async function POST(request: Request) {
 
     console.log(`Order ${order.id} saved successfully`);
 
-    let emailWarning: string | undefined;
-    let confirmationUrl: string | undefined;
-
-    try {
-      const confirmationToken = createStaffOrderConfirmationToken(order.id);
-      confirmationUrl = createStaffOrderConfirmationUrl(
-        confirmationToken,
-        request.url,
-      );
-    } catch (error) {
-      console.error(
-        `Unable to create staff confirmation link for order ${order.id}:`,
-        error,
-      );
-    }
-
-    try {
-      const emailResult = await sendNewOrderEmail({
-        orderId: order.id,
-        customerName: order.customer_name,
-        customerPhone: order.customer_phone,
-        deliveryLocation: order.area,
-        items: orderItems.map((item, index) => ({
-          item_name: item.item_name,
-          selected_protein: item.selected_protein,
-          selected_size: cartItems[index]?.selected_size ?? null,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-        })),
-        subtotal: Number(order.subtotal),
-        deliveryCharge: Number(order.delivery_charge),
-        gst: totals.gst,
-        total: Number(order.total),
-        paymentMethod: order.payment_method,
-        confirmationUrl,
-      });
-
-      if (emailResult.sent) {
-        console.log(`Order email sent successfully for order ${order.id}`);
-      } else {
-        emailWarning = "Order email could not be sent.";
-      }
-    } catch (error) {
-      emailWarning = "Order email could not be sent.";
-      console.error(`Order email failed for order ${order.id}:`, error);
-    }
-
     await supabaseAdmin.from("CartItems").delete().eq("session_id", sessionId);
 
     return NextResponse.json({
@@ -402,7 +350,6 @@ export async function POST(request: Request) {
       orderId: order.id,
       total,
       message: "Order placed successfully.",
-      ...(emailWarning ? { emailWarning } : {}),
     });
   } catch (error) {
     console.error("Place order error:", error);

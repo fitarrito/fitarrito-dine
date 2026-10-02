@@ -90,7 +90,7 @@ export async function POST(request: Request) {
   const { data: order, error } = await supabaseAdmin
     .from("orders")
     .select(
-      "id, customer_name, customer_phone, status, preparation_time_minutes, payment_method",
+      "id, customer_name, customer_phone, status, preparation_time_minutes, payment_method, updated_at",
     )
     .eq("id", orderId)
     .single();
@@ -114,6 +114,7 @@ export async function POST(request: Request) {
       alreadyUpdated: true,
       orderId: order.id,
       status: order.status,
+      updatedAt: order.updated_at,
       notification: notificationFor({
         customerName: order.customer_name,
         customerPhone: order.customer_phone,
@@ -130,6 +131,7 @@ export async function POST(request: Request) {
       alreadyUpdated: true,
       orderId: order.id,
       status: order.status,
+      updatedAt: order.updated_at,
       notification: notificationFor({
         customerName: order.customer_name,
         customerPhone: order.customer_phone,
@@ -181,7 +183,9 @@ export async function POST(request: Request) {
     .update(update)
     .eq("id", order.id)
     .eq("status", order.status)
-    .select("id, status, customer_name, customer_phone, preparation_time_minutes, payment_method")
+    .select(
+      "id, status, customer_name, customer_phone, preparation_time_minutes, payment_method, updated_at",
+    )
     .maybeSingle();
 
   if (updateError) {
@@ -205,6 +209,7 @@ export async function POST(request: Request) {
     alreadyUpdated: false,
     orderId: updatedOrder.id,
     status: updatedOrder.status,
+    updatedAt: updatedOrder.updated_at,
     notification: notificationFor({
       customerName: updatedOrder.customer_name,
       customerPhone: updatedOrder.customer_phone,
