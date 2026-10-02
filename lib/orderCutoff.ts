@@ -10,7 +10,7 @@ type OrderCutoffs = {
   dinner: CutoffTime;
 };
 
-// Temporary: uses TEST_ORDER_CUTOFFS (8 PM dinner) instead of production cutoffs.
+// Temporary: uses TEST_ORDER_CUTOFFS (10 PM dinner) instead of production cutoffs.
 export const IGNORE_ORDER_CUTOFF_FOR_TESTING = true;
 
 export const ORDER_CUTOFFS: OrderCutoffs = {
@@ -30,7 +30,7 @@ export const TEST_ORDER_CUTOFFS: OrderCutoffs = {
     minute: 0,
   },
   dinner: {
-    hour: 20,
+    hour: 22,
     minute: 0,
   },
 };
