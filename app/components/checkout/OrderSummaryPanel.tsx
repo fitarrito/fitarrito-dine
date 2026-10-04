@@ -16,7 +16,11 @@ import {
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import { removeCartItem } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
-import { getDinnerCutoffLabel } from "@lib/orderCutoff";
+import {
+  getAfternoonOpenLabel,
+  getDinnerCutoffLabel,
+  getLunchCutoffLabel,
+} from "@lib/orderCutoff";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { calculateOrderTotals, GST_LABEL } from "@lib/orderTotals";
 import { formatRupees } from "@lib/razorpayFee";
@@ -42,6 +46,8 @@ export default function OrderSummaryPanel({
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const subtotal = useAppSelector((state) => state.cart.totalAmt);
+  const lunchCutoff = getLunchCutoffLabel();
+  const afternoonOpen = getAfternoonOpenLabel();
   const dinnerCutoff = getDinnerCutoffLabel();
   const isPayment = variant === "payment";
   const totals = calculateOrderTotals(subtotal);
@@ -195,7 +201,7 @@ export default function OrderSummaryPanel({
                 <div>
                   <p className={styles.windowTitle}>Lunch Orders</p>
                   <p className={styles.windowHint}>
-                    Place your order before <strong>10:00 AM</strong>
+                    Place your order before <strong>{lunchCutoff}</strong>
                   </p>
                 </div>
               </div>
@@ -205,7 +211,8 @@ export default function OrderSummaryPanel({
                 <div>
                   <p className={styles.windowTitle}>Dinner Orders</p>
                   <p className={styles.windowHint}>
-                    Place your order before <strong>{dinnerCutoff}</strong>
+                    Open from <strong>{afternoonOpen}</strong> until{" "}
+                    <strong>{dinnerCutoff}</strong>
                   </p>
                 </div>
               </div>

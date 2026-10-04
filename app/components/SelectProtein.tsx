@@ -14,6 +14,7 @@ import {
   calculateMenuItemPricing,
   getAvailableProteinVariants,
 } from "@lib/menuPricing";
+import { quoteSizePrice } from "@lib/mexicanMiniOffer";
 import { useAppDispatch } from "@lib/hooks";
 import { useOrderWindow } from "@lib/useOrderWindow";
 import { resolveProteinImageUrl } from "@lib/menuImages";
@@ -133,7 +134,8 @@ export default function SelectProtein({
 
   const renderSizeCard = (size: SizeVariant) => {
     const active = selectedSizeName === size.name;
-    const sizePrice = parseFloat(String(size.price || 0));
+    const quote = quoteSizePrice(item, size, parseFloat(String(size.price || 0)));
+    const onOffer = quote.originalPrice != null;
 
     return (
       <button
@@ -148,7 +150,16 @@ export default function SelectProtein({
           aria-hidden
         />
         <span className={styles.sizeName}>{size.name}</span>
-        <span className={styles.sizePrice}>{formatRupee(sizePrice)}</span>
+        <span className={styles.sizePriceRow}>
+          {onOffer ? (
+            <span className={styles.sizePriceOriginal}>
+              {formatRupee(quote.originalPrice ?? 0)}
+            </span>
+          ) : null}
+          <span className={onOffer ? styles.sizePriceOffer : styles.sizePrice}>
+            {formatRupee(quote.price)}
+          </span>
+        </span>
       </button>
     );
   };
@@ -250,7 +261,14 @@ export default function SelectProtein({
 
         <div className={styles.summaryPricing}>
           <p className={styles.totalLabel}>Total Price</p>
-          <p className={styles.totalValue}>{formatRupee(pricing.price)}</p>
+          <p className={styles.totalValue}>
+            {pricing.original_price != null ? (
+              <span className={styles.totalOriginal}>
+                {formatRupee(pricing.original_price)}
+              </span>
+            ) : null}
+            {formatRupee(pricing.price)}
+          </p>
         </div>
 
         <button

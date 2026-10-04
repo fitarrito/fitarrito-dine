@@ -1,0 +1,72 @@
+.banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: min(1120px, 100%);
+  margin: 0 auto 1.25rem;
+}
+
+.posterFrame {
+  overflow: hidden;
+  width: min(1024px, 100%);
+  margin: 0 auto;
+  border-radius: 16px;
+  background: #fff7f2;
+}
+
+.poster {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 1024px;
+}
+
+.note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.9rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  background: #fff5f5;
+}
+
+.noteLead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.noteTitle {
+  margin: 0;
+  color: var(--customTheme);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.noteBadge {
+  margin: 0;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.noteCopy {
+  margin: 0;
+  flex: 1 1 16rem;
+  color: #374151;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.noteDates {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.82rem;
+  font-weight: 600;
+}

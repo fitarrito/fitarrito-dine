@@ -14,6 +14,8 @@ import {
   razorpayConfigurationError,
 } from "@lib/razorpay";
 import { calculateOrderTotals } from "@lib/orderTotals";
+import { repriceCartRows } from "@lib/pricedCart";
+import type { CartItemRecord } from "@lib/cartItemsServer";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +36,7 @@ async function resolveAmountPaise(body: {
     const supabaseAdmin = getSupabaseAdminClient();
     const { data: cartItems, error } = await supabaseAdmin
       .from("CartItems")
-      .select("price, quantity")
+      .select("*")
       .eq("session_id", sessionId);
 
     if (error) {
@@ -45,7 +47,8 @@ async function resolveAmountPaise(body: {
       return { error: "Your cart is empty.", status: 400 as const };
     }
 
-    const rupees = cartItems.reduce(
+    const pricedItems = await repriceCartRows(cartItems as CartItemRecord[]);
+    const rupees = pricedItems.reduce(
       (sum, item) => sum + Number(item.price) * Number(item.quantity),
       0,
     );

@@ -18,6 +18,8 @@ import OnDemandOrderingBanner from "@/components/OnDemandOrderingBanner";
 import PanAsianMenu from "@/components/PanAsianMenu";
 import FitarritoHouseMenu from "@/components/FitarritoHouseMenu";
 import { cuisineSlugFromNavCategory } from "@lib/menuCuisine";
+import { isMexicanMiniOfferActive } from "@lib/mexicanMiniOffer";
+import MexicanMiniOfferBanner from "@/components/MexicanMiniOfferBanner";
 
 type FoodCategory = {
   id: number;
@@ -30,14 +32,14 @@ function MenuPageContent() {
   const categoryParam = searchParams.get("category") ?? DEFAULT_MENU_CATEGORY;
   const activeSection =
     sectionParam === "order-now" ? "order-now" : ("dine-in" as const);
-  const activeMenuCategory = DINE_IN_CATEGORIES.some(
-    (c) => c.id === categoryParam,
-  )
-    ? categoryParam
-    : DEFAULT_MENU_CATEGORY;
+  const requestedCategory = DINE_IN_CATEGORIES.find(
+    (category) => category.id === categoryParam && !category.hidden,
+  );
+  const activeMenuCategory = requestedCategory?.id ?? DEFAULT_MENU_CATEGORY;
   const activeCuisine = cuisineSlugFromNavCategory(activeMenuCategory);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [offerClockReady, setOfferClockReady] = useState(false);
   const [selectedTab, setSelectedTab] = useState<string | null>(null);
   const [selectedFoodCategoryId, setSelectedFoodCategoryId] = useState<
     number | null
@@ -71,6 +73,8 @@ function MenuPageContent() {
       activeMenuCategory !== "pan-asian" &&
       activeMenuCategory !== "fitarrito-house");
   const showOnDemandBanner = activeSection === "dine-in";
+  const showMexicanMiniOffer =
+    offerClockReady && showMexicanMenu && isMexicanMiniOfferActive();
   const needsMenuApiData = Boolean(activeCuisine);
 
   const filteredMenuItems = useMemo(() => {
@@ -84,6 +88,10 @@ function MenuPageContent() {
     setSelectedTab(item.name);
     setSelectedFoodCategoryId(item.id);
   };
+
+  useEffect(() => {
+    setOfferClockReady(true);
+  }, []);
 
   useEffect(() => {
     setSelectedTab(null);
@@ -198,15 +206,26 @@ function MenuPageContent() {
 
   return (
     <div className={styles.menuContainer}>
-      <div className={styles.pageHeading}>
-        <div className="sub-heading">
-          Checkout Our <span className="badge-skew">Menu</span>
+      {showMexicanMiniOffer ? <MexicanMiniOfferBanner /> : null}
+      {showMexicanMiniOffer ? null : (
+        <div className={styles.pageHeading}>
+          <div className="sub-heading">
+            Checkout Our <span className="badge-skew">Menu</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {activeSection === "dine-in" ? (
         <div className={styles.menuNavBlock}>
-          {showOnDemandBanner ? <OnDemandOrderingBanner /> : null}
+          {showOnDemandBanner ? (
+            <OnDemandOrderingBanner
+              subtitle={
+                showMexicanMenu
+                  ? "Freshly made burritos, tacos, bowls & more!"
+                  : undefined
+              }
+            />
+          ) : null}
           <MenuCategoryNav activeCategory={activeMenuCategory} />
         </div>
       ) : null}

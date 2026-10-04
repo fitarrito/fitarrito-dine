@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { FaSyncAlt, FaWhatsapp } from "react-icons/fa";
+import { FaSyncAlt, FaVolumeMute, FaVolumeUp, FaWhatsapp } from "react-icons/fa";
 import logo from "../../../public/images/logo.svg";
 import emptyOrders from "../../../public/images/staff-empty-orders.png";
 import { fetchJson } from "@lib/apiFetch";
 import { formatRupees } from "@lib/razorpayFee";
+import { pendingAlertIds } from "@lib/staffOrderAlerts";
 import {
   PREPARATION_ESTIMATES,
   type PreparationMinutes,
@@ -45,6 +46,44 @@ type Notification = {
 
 type StatusFilter = "active" | "pending" | "confirmed" | "preparing";
 type LiveState = "connecting" | "live" | "reconnecting";
+
+const SOUND_ALERTS_KEY = "fitarrito_staff_sound_alerts";
+const SOUND_REPEAT_MS = 3000;
+
+function playOrderChime(context: AudioContext, output: AudioNode) {
+  const start = context.currentTime;
+
+  [880, 1174].forEach((frequency, index) => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const noteStart = start + index * 0.16;
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, noteStart);
+    gain.gain.exponentialRampToValueAtTime(0.18, noteStart + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + 0.28);
+    oscillator.connect(gain);
+    gain.connect(output);
+    oscillator.start(noteStart);
+    oscillator.stop(noteStart + 0.3);
+  });
+}
+
+function notifyNewOrder(order: StaffOrder) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+    return;
+  }
+
+  try {
+    new Notification(`New Fitarrito order #${order.id}`, {
+      body: `${order.customerName} · ${order.deliveryLocation || "Delivery order"}`,
+      tag: `fitarrito-order-${order.id}`,
+    });
+  } catch {
+    // The browser can reject a notification without affecting the sound alert.
+  }
+}
 
 const STATUS_RANK: Record<string, number> = {
   pending: 1,
@@ -138,10 +177,42 @@ export default function StaffDashboardPage() {
   >({});
   const [notices, setNotices] = useState<Record<string, Notification>>({});
   const [liveState, setLiveState] = useState<LiveState>("connecting");
+  const [baselineIds, setBaselineIds] = useState<Set<string> | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  const audioRef = useRef<AudioContext | null>(null);
+  const alarmOutputRef = useRef<GainNode | null>(null);
+  const alarmTimerRef = useRef(0);
+  const alarmGenerationRef = useRef(0);
+  const ordersRef = useRef(orders);
+  const baselineRef = useRef(baselineIds);
+  const notifiedIds = useRef(new Set<string>());
+  const alertCountRef = useRef(0);
+
+  ordersRef.current = orders;
+  baselineRef.current = baselineIds;
+
+  const silenceAlarm = useCallback(() => {
+    alarmGenerationRef.current += 1;
+    window.clearInterval(alarmTimerRef.current);
+    alarmTimerRef.current = 0;
+
+    const output = alarmOutputRef.current;
+    const context = audioRef.current;
+
+    if (!output || !context || context.state === "closed") return;
+
+    output.gain.cancelScheduledValues(context.currentTime);
+    output.gain.setValueAtTime(0.0001, context.currentTime);
+  }, []);
 
   const loadOrders = useCallback(async () => {
     const result = await fetchJson<{ orders: StaffOrder[] }>("/api/staff/orders");
     setOrders((current) => mergeOrderList(current, result.orders));
+    setBaselineIds(
+      (current) =>
+        current ?? new Set(result.orders.map((order) => String(order.id))),
+    );
   }, []);
 
   useEffect(() => {
@@ -176,6 +247,106 @@ export default function StaffDashboardPage() {
       cancelled = true;
     };
   }, [loadOrders]);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(SOUND_ALERTS_KEY) === "1") {
+        setSoundEnabled(true);
+        setSoundBlocked(true);
+      }
+    } catch {
+      // Private browsing can block session storage.
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      const context = audioRef.current;
+      audioRef.current = null;
+
+      if (context && context.state !== "closed") {
+        void context.close();
+      }
+    };
+  }, []);
+
+  const alertingIds = pendingAlertIds(orders, baselineIds);
+  const alertingKey = alertingIds.join(",");
+
+  useEffect(() => {
+    const alertCount = alertingKey ? alertingKey.split(",").filter(Boolean).length : 0;
+    const startNow = alertCount > alertCountRef.current;
+    alertCountRef.current = alertCount;
+
+    if (!soundEnabled || alertCount === 0) {
+      silenceAlarm();
+      return;
+    }
+
+    let stopped = false;
+
+    const ring = async () => {
+      const generation = alarmGenerationRef.current;
+      const context = audioRef.current;
+
+      if (!context || stopped || generation !== alarmGenerationRef.current) return;
+
+      if (context.state === "suspended") {
+        try {
+          await context.resume();
+        } catch {
+          if (!stopped) setSoundBlocked(true);
+          return;
+        }
+      }
+
+      if (
+        stopped ||
+        generation !== alarmGenerationRef.current ||
+        context.state !== "running"
+      ) {
+        if (!stopped && context.state !== "running") setSoundBlocked(true);
+        return;
+      }
+
+      let output = alarmOutputRef.current;
+
+      if (!output || output.context !== context) {
+        output = context.createGain();
+        output.connect(context.destination);
+        alarmOutputRef.current = output;
+      }
+
+      output.gain.cancelScheduledValues(context.currentTime);
+      output.gain.setValueAtTime(1, context.currentTime);
+      setSoundBlocked(false);
+      playOrderChime(context, output);
+    };
+
+    alarmTimerRef.current = window.setInterval(() => {
+      void ring();
+    }, SOUND_REPEAT_MS);
+
+    if (startNow) void ring();
+
+    return () => {
+      stopped = true;
+      silenceAlarm();
+    };
+  }, [alertingKey, silenceAlarm, soundEnabled]);
+
+  useEffect(() => {
+    if (!alertingKey) return;
+
+    for (const id of alertingKey.split(",")) {
+      if (notifiedIds.current.has(id)) continue;
+
+      notifiedIds.current.add(id);
+      const order = orders.find((item) => String(item.id) === id);
+
+      if (order) notifyNewOrder(order);
+    }
+  }, [alertingKey, orders]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -270,6 +441,63 @@ export default function StaffDashboardPage() {
     await fetchJson("/api/staff/session", { method: "DELETE" });
     setAuthenticated(false);
     setOrders([]);
+    setBaselineIds(null);
+    notifiedIds.current.clear();
+  };
+
+  const toggleSound = async () => {
+    if (soundEnabled && audioRef.current?.state === "running") {
+      try {
+        sessionStorage.setItem(SOUND_ALERTS_KEY, "0");
+      } catch {
+        // The in-memory choice still turns the alert off.
+      }
+
+      setSoundEnabled(false);
+      setSoundBlocked(false);
+      return;
+    }
+
+    const context = audioRef.current ?? new AudioContext();
+    audioRef.current = context;
+
+    try {
+      await context.resume();
+    } catch {
+      setSoundBlocked(true);
+    }
+
+    const unlocked = context.state === "running";
+
+    try {
+      sessionStorage.setItem(SOUND_ALERTS_KEY, "1");
+    } catch {
+      // Sound can still play for this page view.
+    }
+
+    setSoundEnabled(true);
+    setSoundBlocked(!unlocked);
+
+    if (unlocked && alertingIds.length > 0) {
+      let output = alarmOutputRef.current;
+
+      if (!output || output.context !== context) {
+        output = context.createGain();
+        output.connect(context.destination);
+        alarmOutputRef.current = output;
+      }
+
+      output.gain.setValueAtTime(1, context.currentTime);
+      playOrderChime(context, output);
+    }
+
+    if (
+      unlocked &&
+      typeof Notification !== "undefined" &&
+      Notification.permission === "default"
+    ) {
+      void Notification.requestPermission();
+    }
   };
 
   const updateOrder = async (
@@ -299,16 +527,23 @@ export default function StaffDashboardPage() {
       const preparationLabel =
         PREPARATION_ESTIMATES.find((estimate) => estimate.minutes === preparationMinutes)
           ?.label ?? order.preparationLabel;
+      const updatedOrder = {
+        ...order,
+        status: savedStatus,
+        updatedAt: result.updatedAt ?? new Date().toISOString(),
+        preparationLabel:
+          savedStatus === "confirmed" ? preparationLabel : order.preparationLabel,
+      };
+      const nextBaseline = new Set(baselineRef.current ?? []);
 
-      setOrders((current) =>
-        mergeStaffOrder(current, {
-          ...order,
-          status: savedStatus,
-          updatedAt: result.updatedAt ?? new Date().toISOString(),
-          preparationLabel:
-            savedStatus === "confirmed" ? preparationLabel : order.preparationLabel,
-        }),
-      );
+      if (action === "confirm" && savedStatus !== "pending") {
+        nextBaseline.add(String(order.id));
+        setBaselineIds(nextBaseline);
+        silenceAlarm();
+      }
+
+      const nextOrders = mergeStaffOrder(ordersRef.current, updatedOrder);
+      setOrders(nextOrders);
       setNotices((current) => ({
         ...current,
         [String(order.id)]: result.notification,
@@ -400,10 +635,48 @@ export default function StaffDashboardPage() {
             <p>Website on-demand orders</p>
           </div>
         </div>
-        <button className={styles.logout} type="button" onClick={() => void signOut()}>
-          Sign out
-        </button>
+        <div className={styles.headerActions}>
+          <button
+            className={soundEnabled && !soundBlocked ? styles.soundOn : styles.soundOff}
+            type="button"
+            onClick={() => void toggleSound()}
+          >
+            {soundEnabled && !soundBlocked ? (
+              <FaVolumeUp aria-hidden />
+            ) : (
+              <FaVolumeMute aria-hidden />
+            )}
+            {soundEnabled && !soundBlocked ? "Sound alerts on" : "Enable sound alerts"}
+          </button>
+          <button className={styles.logout} type="button" onClick={() => void signOut()}>
+            Sign out
+          </button>
+        </div>
       </header>
+
+      {alertingIds.length > 0 ? (
+        <div className={styles.alertBanner} role="status">
+          <strong>
+            {alertingIds.length === 1
+              ? "1 new order needs confirmation"
+              : `${alertingIds.length} new orders need confirmation`}
+          </strong>
+          <span>The alert continues until each new order is confirmed.</span>
+          {filter !== "active" && filter !== "pending" ? (
+            <button type="button" onClick={() => setFilter("active")}>
+              Show incoming
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {soundBlocked || (!soundEnabled && alertingIds.length > 0) ? (
+        <p className={styles.soundReminder}>
+          {soundEnabled
+            ? "Sound alerts are saved for this visit, but the browser is blocking audio. Tap Enable sound alerts."
+            : "Tap Enable sound alerts so new orders can play a sound. Browsers block audio until you do."}
+        </p>
+      ) : null}
 
       <div className={styles.filters}>
         {(
@@ -471,15 +744,21 @@ export default function StaffDashboardPage() {
         <div className={styles.orders}>
           {visibleOrders.map((order) => {
             const notice = notices[String(order.id)];
+            const alerting = alertingIds.includes(String(order.id));
 
             return (
-              <article className={styles.orderCard} key={order.id}>
+              <article
+                className={alerting ? `${styles.orderCard} ${styles.alerting}` : styles.orderCard}
+                key={order.id}
+              >
                 <header className={styles.orderHeader}>
                   <div>
                     <h2>Order #{order.id}</h2>
                     <p className={styles.meta}>{order.customerName}</p>
                   </div>
-                  <span className={styles.badge}>{statusLabel(order.status)}</span>
+                  <span className={alerting ? styles.newBadge : styles.badge}>
+                    {alerting ? "New" : statusLabel(order.status)}
+                  </span>
                 </header>
 
                 <div className={styles.details}>

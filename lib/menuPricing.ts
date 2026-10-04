@@ -1,5 +1,6 @@
 import type { menuItem, ProteinVariant, SizeVariant } from "@/types/types";
 import { getProteinNameForPricing } from "@lib/fitarritoHouseMenu";
+import { quoteSizePrice } from "@lib/mexicanMiniOffer";
 
 export function findSizeVariant(
   menuItemRow: menuItem,
@@ -53,17 +54,21 @@ export function calculateMenuItemPricing(
   menuItemRow: menuItem,
   selectedProtein?: string | null,
   selectedSize?: string | null,
+  now: Date = new Date(),
 ) {
   const sizeVariant = findSizeVariant(menuItemRow, selectedSize);
-  const basePrice = sizeVariant
-    ? parseFloat(String(sizeVariant.price || 0))
-    : parseFloat(String(menuItemRow.price || 0));
+  const listPrice = parseFloat(String(menuItemRow.price || 0));
+  const quote = quoteSizePrice(menuItemRow, sizeVariant, listPrice, now);
+  const basePrice = quote.price;
   const proteinVariant = findProteinVariant(menuItemRow, selectedProtein);
   const proteinPrice = parseFloat(String(proteinVariant?.price || 0));
+  const originalPrice =
+    quote.originalPrice == null ? null : quote.originalPrice + proteinPrice;
 
   return {
     base_price: basePrice,
     protein_price: proteinPrice,
     price: basePrice + proteinPrice,
+    original_price: originalPrice,
   };
 }

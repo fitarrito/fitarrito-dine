@@ -8,6 +8,7 @@ export type DineInCategory = {
   id: string;
   label: string;
   imageUrl?: string;
+  hidden?: boolean;
 };
 
 export const DINE_IN_CATEGORIES: DineInCategory[] = [
@@ -25,8 +26,13 @@ export const DINE_IN_CATEGORIES: DineInCategory[] = [
     id: "fitarrito-house",
     label: "Fitarrito House",
     imageUrl: "/images/fitarrito.svg",
+    hidden: true,
   },
 ];
+
+export const VISIBLE_DINE_IN_CATEGORIES = DINE_IN_CATEGORIES.filter(
+  (category) => !category.hidden,
+);
 
 export const DEFAULT_MENU_CATEGORY = "mexican";
 
@@ -43,7 +49,7 @@ export default function MenuCategoryNav({
   return (
     <nav className={styles.nav} aria-label="Dine-in categories">
       <div className={styles.subRow}>
-        {DINE_IN_CATEGORIES.map((category) => {
+        {VISIBLE_DINE_IN_CATEGORIES.map((category) => {
           const active = activeCategory === category.id;
 
           return (

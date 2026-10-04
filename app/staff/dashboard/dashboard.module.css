@@ -12,6 +12,99 @@
   margin-bottom: 1.25rem;
 }
 
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.soundOff,
+.soundOn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.soundOff {
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #7f1d1d;
+}
+
+.soundOn {
+  border: 0;
+  background: #111827;
+  color: #fff;
+}
+
+.alertBanner,
+.soundReminder {
+  margin: 0 0 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+}
+
+.alertBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.8rem;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+}
+
+.alertBanner strong {
+  color: #9f1239;
+}
+
+.alertBanner span {
+  color: #6b7280;
+}
+
+.alertBanner button {
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  background: var(--customTheme, #fc1e1e);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0.4rem 0.75rem;
+}
+
+.soundReminder {
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  font-weight: 700;
+}
+
+.alerting {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px #fecdd3;
+  animation: alertPulse 1.2s ease-in-out infinite;
+}
+
+.newBadge {
+  border-radius: 999px;
+  background: var(--customTheme, #fc1e1e);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 900;
+  padding: 0.35rem 0.65rem;
+}
+
+@keyframes alertPulse {
+  50% {
+    box-shadow: 0 0 0 6px #ffe4e6;
+  }
+}
+
 .brand {
   display: flex;
   align-items: center;

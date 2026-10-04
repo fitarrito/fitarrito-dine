@@ -7,30 +7,43 @@ type CutoffTime = {
 
 type OrderCutoffs = {
   lunch: CutoffTime;
+  afternoonOpen: CutoffTime;
   dinner: CutoffTime;
 };
 
-// Temporary: uses TEST_ORDER_CUTOFFS (10 PM dinner) instead of production cutoffs.
-export const IGNORE_ORDER_CUTOFF_FOR_TESTING = true;
+export const IGNORE_ORDER_CUTOFF_FOR_TESTING = false;
+
+const MORNING_OPEN: CutoffTime = {
+  hour: 8,
+  minute: 0,
+};
 
 export const ORDER_CUTOFFS: OrderCutoffs = {
   lunch: {
-    hour: 10,
+    hour: 11,
+    minute: 0,
+  },
+  afternoonOpen: {
+    hour: 15,
     minute: 0,
   },
   dinner: {
-    hour: 18,
+    hour: 19,
     minute: 0,
   },
 };
 
 export const TEST_ORDER_CUTOFFS: OrderCutoffs = {
   lunch: {
-    hour: 10,
+    hour: 11,
+    minute: 0,
+  },
+  afternoonOpen: {
+    hour: 15,
     minute: 0,
   },
   dinner: {
-    hour: 22,
+    hour: 19,
     minute: 0,
   },
 };
@@ -48,12 +61,21 @@ function formatCutoffTime({ hour, minute }: CutoffTime) {
   return `${hour12}${minuteText} ${period}`;
 }
 
+export function getMorningOpenLabel() {
+  return formatCutoffTime(MORNING_OPEN);
+}
+
+export function getLunchCutoffLabel() {
+  return formatCutoffTime(getActiveCutoffs().lunch);
+}
+
+export function getAfternoonOpenLabel() {
+  return formatCutoffTime(getActiveCutoffs().afternoonOpen);
+}
+
 export function getDinnerCutoffLabel() {
   return formatCutoffTime(getActiveCutoffs().dinner);
 }
-
-const OVERNIGHT_OPEN_MINUTES = 8 * 60;
-const OVERNIGHT_CLOSE_MINUTES = 22 * 60;
 
 function toMinutes(hour: number, minute: number) {
   return hour * 60 + minute;
@@ -73,25 +95,45 @@ function getChennaiMinutes(now: Date) {
 
 export function isOvernightClosed(now = new Date()) {
   const totalMinutes = getChennaiMinutes(now);
+  const cutoffs = getActiveCutoffs();
+  const morningOpen = toMinutes(MORNING_OPEN.hour, MORNING_OPEN.minute);
+  const dinnerClose = toMinutes(cutoffs.dinner.hour, cutoffs.dinner.minute);
 
-  return (
-    totalMinutes < OVERNIGHT_OPEN_MINUTES ||
-    totalMinutes >= OVERNIGHT_CLOSE_MINUTES
+  return totalMinutes < morningOpen || totalMinutes >= dinnerClose;
+}
+
+export function isAfternoonClosed(now = new Date()) {
+  const totalMinutes = getChennaiMinutes(now);
+  const cutoffs = getActiveCutoffs();
+  const lunchClose = toMinutes(cutoffs.lunch.hour, cutoffs.lunch.minute);
+  const afternoonOpen = toMinutes(
+    cutoffs.afternoonOpen.hour,
+    cutoffs.afternoonOpen.minute,
   );
+
+  return totalMinutes >= lunchClose && totalMinutes < afternoonOpen;
 }
 
 export function getOrderWindow(now = new Date()): OrderWindow {
   const cutoffs = getActiveCutoffs();
   const totalMinutes = getChennaiMinutes(now);
   const lunchCutoff = toMinutes(cutoffs.lunch.hour, cutoffs.lunch.minute);
+  const afternoonOpen = toMinutes(
+    cutoffs.afternoonOpen.hour,
+    cutoffs.afternoonOpen.minute,
+  );
   const dinnerCutoff = toMinutes(cutoffs.dinner.hour, cutoffs.dinner.minute);
 
-  if (isOvernightClosed(now)) {
+  if (totalMinutes < toMinutes(MORNING_OPEN.hour, MORNING_OPEN.minute)) {
     return "closed";
   }
 
   if (totalMinutes < lunchCutoff) {
     return "lunch";
+  }
+
+  if (totalMinutes < afternoonOpen) {
+    return "closed";
   }
 
   if (totalMinutes < dinnerCutoff) {

@@ -3,7 +3,14 @@ import {
   getSupabaseAdminClient,
   getSupabaseAdminConfig,
 } from "@lib/getSupabaseAdmin";
-import { getOrderWindow, isOvernightClosed } from "@lib/orderCutoff";
+import {
+  getAfternoonOpenLabel,
+  getDinnerCutoffLabel,
+  getMorningOpenLabel,
+  getOrderWindow,
+  isAfternoonClosed,
+  isOvernightClosed,
+} from "@lib/orderCutoff";
 import {
   isValidIndianMobile,
   normalizeIndianPhone,
@@ -11,6 +18,8 @@ import {
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { getDeliveryArea, getDeliveryAreaById } from "@lib/deliveryAreas";
 import { calculateOrderTotals } from "@lib/orderTotals";
+import { repriceCartRows } from "@lib/pricedCart";
+import type { CartItemRecord } from "@lib/cartItemsServer";
 import {
   getRazorpayConfig,
   getRazorpayConfigDiagnostics,
@@ -135,9 +144,11 @@ export async function POST(request: Request) {
     if (getOrderWindow() === "closed") {
       return NextResponse.json(
         {
-          error: isOvernightClosed()
-            ? "Ordering is closed from 10:00 PM to 8:00 AM. Please place your order after 8:00 AM."
-            : "Today's on-demand ordering has closed. Please place your order tomorrow.",
+          error: isAfternoonClosed()
+            ? `Ordering is closed until ${getAfternoonOpenLabel()}. Evening orders open then.`
+            : isOvernightClosed()
+              ? `Ordering is closed from ${getDinnerCutoffLabel()} to ${getMorningOpenLabel()}. Please place your order after ${getMorningOpenLabel()}.`
+              : "Today's on-demand ordering has closed. Please place your order tomorrow.",
         },
         { status: 400 },
       );
@@ -166,7 +177,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const subtotal = cartItems.reduce(
+    const pricedItems = await repriceCartRows(cartItems as CartItemRecord[]);
+    const subtotal = pricedItems.reduce(
       (sum, item) => sum + Number(item.price) * Number(item.quantity),
       0,
     );
@@ -298,7 +310,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const orderItems = cartItems.map((item) => {
+    const orderItems = pricedItems.map((item) => {
       const customization = getCartItemCustomization({
         title: item.title,
         selected_protein: item.selected_protein,
