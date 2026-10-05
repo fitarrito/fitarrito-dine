@@ -6,21 +6,15 @@ import Link from "next/link";
 import {
   FaArrowRight,
   FaLock,
-  FaMoon,
   FaPen,
   FaShoppingCart,
   FaStore,
-  FaSun,
   FaTimes,
 } from "react-icons/fa";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import { removeCartItem } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
-import {
-  getAfternoonOpenLabel,
-  getDinnerCutoffLabel,
-  getLunchCutoffLabel,
-} from "@lib/orderCutoff";
+import { getMorningOpenLabel, getNightCloseLabel } from "@lib/orderCutoff";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { calculateOrderTotals, GST_LABEL } from "@lib/orderTotals";
 import { formatRupees } from "@lib/razorpayFee";
@@ -46,9 +40,8 @@ export default function OrderSummaryPanel({
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const subtotal = useAppSelector((state) => state.cart.totalAmt);
-  const lunchCutoff = getLunchCutoffLabel();
-  const afternoonOpen = getAfternoonOpenLabel();
-  const dinnerCutoff = getDinnerCutoffLabel();
+  const morningOpen = getMorningOpenLabel();
+  const nightClose = getNightCloseLabel();
   const isPayment = variant === "payment";
   const totals = calculateOrderTotals(subtotal);
   const totalAmount = totals.total;
@@ -195,28 +188,10 @@ export default function OrderSummaryPanel({
               <span>On-Demand Orders</span>
             </div>
 
-            <div className={styles.orderWindows}>
-              <div className={styles.orderWindow}>
-                <FaSun className={styles.sunIcon} aria-hidden />
-                <div>
-                  <p className={styles.windowTitle}>Lunch Orders</p>
-                  <p className={styles.windowHint}>
-                    Place your order before <strong>{lunchCutoff}</strong>
-                  </p>
-                </div>
-              </div>
-
-              <div className={styles.orderWindow}>
-                <FaMoon className={styles.moonIcon} aria-hidden />
-                <div>
-                  <p className={styles.windowTitle}>Dinner Orders</p>
-                  <p className={styles.windowHint}>
-                    Open from <strong>{afternoonOpen}</strong> until{" "}
-                    <strong>{dinnerCutoff}</strong>
-                  </p>
-                </div>
-              </div>
-            </div>
+            <p className={styles.windowHint}>
+              Orders are open from <strong>{morningOpen}</strong> to{" "}
+              <strong>{nightClose}</strong>.
+            </p>
           </div>
         </>
       ) : null}

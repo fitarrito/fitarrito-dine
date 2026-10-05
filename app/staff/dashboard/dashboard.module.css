@@ -193,18 +193,28 @@
   font-size: 0.92rem;
 }
 
-.refresh {
+.refresh,
+.refreshHeader {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  margin-top: 1.15rem;
-  padding: 0.7rem 1rem;
   border: 1px solid #fecdd3;
-  border-radius: 12px;
   background: #fff;
   color: var(--customTheme, #fc1e1e);
   cursor: pointer;
   font-weight: 800;
+}
+
+.refresh {
+  margin-top: 1.15rem;
+  padding: 0.7rem 1rem;
+  border-radius: 12px;
+}
+
+.refreshHeader {
+  gap: 0.4rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
 }
 
 .logout,

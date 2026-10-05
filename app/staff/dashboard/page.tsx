@@ -637,6 +637,13 @@ export default function StaffDashboardPage() {
         </div>
         <div className={styles.headerActions}>
           <button
+            className={styles.refreshHeader}
+            type="button"
+            onClick={() => window.location.reload()}
+          >
+            <FaSyncAlt aria-hidden /> Refresh orders
+          </button>
+          <button
             className={soundEnabled && !soundBlocked ? styles.soundOn : styles.soundOff}
             type="button"
             onClick={() => void toggleSound()}
@@ -661,7 +668,6 @@ export default function StaffDashboardPage() {
               ? "1 new order needs confirmation"
               : `${alertingIds.length} new orders need confirmation`}
           </strong>
-          <span>The alert continues until each new order is confirmed.</span>
           {filter !== "active" && filter !== "pending" ? (
             <button type="button" onClick={() => setFilter("active")}>
               Show incoming
@@ -731,11 +737,7 @@ export default function StaffDashboardPage() {
           <button
             className={styles.refresh}
             type="button"
-            onClick={() => {
-              void loadOrders().catch(() => {
-                setError("Unable to refresh orders. Live updates will keep trying.");
-              });
-            }}
+            onClick={() => window.location.reload()}
           >
             <FaSyncAlt aria-hidden /> Refresh orders
           </button>

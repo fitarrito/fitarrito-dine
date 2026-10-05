@@ -4,12 +4,9 @@ import {
   getSupabaseAdminConfig,
 } from "@lib/getSupabaseAdmin";
 import {
-  getAfternoonOpenLabel,
-  getDinnerCutoffLabel,
   getMorningOpenLabel,
+  getNightCloseLabel,
   getOrderWindow,
-  isAfternoonClosed,
-  isOvernightClosed,
 } from "@lib/orderCutoff";
 import {
   isValidIndianMobile,
@@ -144,11 +141,7 @@ export async function POST(request: Request) {
     if (getOrderWindow() === "closed") {
       return NextResponse.json(
         {
-          error: isAfternoonClosed()
-            ? `Ordering is closed until ${getAfternoonOpenLabel()}. Evening orders open then.`
-            : isOvernightClosed()
-              ? `Ordering is closed from ${getDinnerCutoffLabel()} to ${getMorningOpenLabel()}. Please place your order after ${getMorningOpenLabel()}.`
-              : "Today's on-demand ordering has closed. Please place your order tomorrow.",
+          error: `Ordering is closed from ${getNightCloseLabel()} to ${getMorningOpenLabel()}. Please place your order after ${getMorningOpenLabel()}.`,
         },
         { status: 400 },
       );
