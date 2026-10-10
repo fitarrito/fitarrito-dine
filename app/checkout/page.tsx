@@ -12,6 +12,7 @@ import {
   FaUser,
 } from "react-icons/fa";
 import CheckoutSteps from "@/components/checkout/CheckoutSteps";
+import OnlineOrderingClosedNotice from "@/components/OnlineOrderingClosedNotice";
 import OrderSummaryPanel from "@/components/checkout/OrderSummaryPanel";
 import { fetchCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
@@ -32,6 +33,8 @@ import {
   type DeliveryAddressType,
 } from "@lib/checkoutDelivery";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
+import { ONLINE_ORDERING_CLOSED_TITLE } from "@lib/onlineOrdering";
+import { useOnlineOrdering } from "@lib/useOnlineOrdering";
 import styles from "./checkout.module.css";
 
 export default function CheckoutPage() {
@@ -41,6 +44,7 @@ export default function CheckoutPage() {
   const loading = useAppSelector((state) => state.cart.loading);
   const [form, setForm] = useState<CheckoutDelivery>(EMPTY_CHECKOUT_DELIVERY);
   const [formError, setFormError] = useState<string | null>(null);
+  const ordering = useOnlineOrdering();
 
   useEffect(() => {
     dispatch(fetchCart(getCartSession()));
@@ -104,6 +108,11 @@ export default function CheckoutPage() {
   };
 
   const handleContinueToPayment = () => {
+    if (ordering.enabled === false) {
+      setFormError(ONLINE_ORDERING_CLOSED_TITLE);
+      return;
+    }
+
     if (!form.fullName.trim() || !form.mobileNumber.trim()) {
       setFormError("Please fill in all required delivery details.");
       return;
@@ -145,6 +154,8 @@ export default function CheckoutPage() {
   return (
     <div className={styles.page}>
       <CheckoutSteps currentStep={2} />
+
+      <OnlineOrderingClosedNotice />
 
       <div className={styles.layout}>
         <form className={styles.formCard} onSubmit={handleSubmit}>

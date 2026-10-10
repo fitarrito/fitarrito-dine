@@ -15,6 +15,8 @@ import { getCartSession } from "@lib/cartSession";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { calculateOrderTotals, GST_LABEL } from "@lib/orderTotals";
 import { formatRupees } from "@lib/razorpayFee";
+import { useOnlineOrdering } from "@lib/useOnlineOrdering";
+import OnlineOrderingClosedNotice from "./OnlineOrderingClosedNotice";
 import Image from "next/image";
 import Button from "./ui/Button";
 import styles from "./Drawer.module.css";
@@ -35,6 +37,8 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
   const cartSession = getCartSession();
   const itemCount = cartItems.reduce((sum, item) => sum + Number(item.quantity), 0);
   const totals = calculateOrderTotals(totalAmt);
+  const ordering = useOnlineOrdering();
+  const orderingClosed = ordering.enabled === false;
 
   useEffect(() => {
     if (isOpen) {
@@ -234,11 +238,14 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
               </div>
             </div>
 
+            {orderingClosed ? <OnlineOrderingClosedNotice /> : null}
             <Button
               variant="primary"
               fullWidth
               className={styles.continueButton}
+              disabled={orderingClosed}
               onClick={() => {
+                if (orderingClosed) return;
                 setIsOpen(false);
                 router.push("/checkout");
               }}

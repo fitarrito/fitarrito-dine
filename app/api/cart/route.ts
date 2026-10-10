@@ -4,35 +4,16 @@ import {
   getSupabaseAdminClient,
   getSupabaseAdminConfig,
 } from "@lib/getSupabaseAdmin";
-import {
-  enrichCartItem,
-  enrichCartItems,
-  type CartItemRecord,
-} from "@lib/cartItemsServer";
+import { type CartItemRecord } from "@lib/cartItemsServer";
+import { repriceCartRows } from "@lib/pricedCart";
 import { calculateMenuItemPricing, findSizeVariant } from "@lib/menuPricing";
+import { quoteStoredPanAsianSelection } from "@lib/panAsianCatalog";
+import { isPanAsianCuisine } from "@lib/panAsianOrder";
 import { getProteinNameForPricing } from "@lib/fitarritoHouseMenu";
 import type { menuItem, ProteinVariant } from "@/types/types";
+import { onlineOrderingBlock } from "@lib/storeOrdering";
 
 export const dynamic = "force-dynamic";
-
-async function fetchMenuItemMap(menuItemIds: Array<string | number>) {
-  if (!menuItemIds.length) {
-    return new Map<string, menuItem>();
-  }
-
-  const supabaseAdmin = getSupabaseAdminClient();
-  const { data, error } = await withTimeout(
-    supabaseAdmin.from("MenuItem").select("*").in("id", menuItemIds),
-    10_000,
-    "Menu item lookup",
-  );
-
-  if (error) throw error;
-
-  return new Map(
-    (data ?? []).map((item) => [String(item.id), item as menuItem]),
-  );
-}
 
 async function loadCartRows(sessionId: string) {
   const supabaseAdmin = getSupabaseAdminClient();
@@ -48,14 +29,25 @@ async function loadCartRows(sessionId: string) {
 }
 
 async function loadEnrichedCart(sessionId: string) {
-  const rows = await loadCartRows(sessionId);
-  const menuItemIds = [...new Set(rows.map((row) => row.menu_item_id))];
-  const menuItemMap = await fetchMenuItemMap(menuItemIds);
+  return repriceCartRows(await loadCartRows(sessionId));
+}
 
-  return enrichCartItems(rows, [...menuItemMap.values()]);
+async function pricedCartItem(row: CartItemRecord) {
+  const [item] = await repriceCartRows([row]);
+
+  return item;
 }
 
 export async function POST(request: Request) {
+  const orderingBlock = await onlineOrderingBlock();
+
+  if (orderingBlock) {
+    return NextResponse.json(
+      { error: orderingBlock.error },
+      { status: orderingBlock.status },
+    );
+  }
+
   if (!getSupabaseAdminConfig()) {
     return NextResponse.json(
       {
@@ -153,27 +145,49 @@ export async function POST(request: Request) {
       );
     }
 
-    const proteinName = getProteinNameForPricing(selectedProtein) ?? selectedProtein;
-    const protein = proteinVariants.find(
-      (item) =>
-        item.name === proteinName &&
-        item.name.toLowerCase() !== "mutton",
-    );
+    const panAsian = isPanAsianCuisine(menuItemRow.cuisine);
+    let pricing: {
+      base_price: number;
+      protein_price: number;
+      price: number;
+    };
+    let storedProtein = selectedProtein;
 
-    if (!protein) {
-      return NextResponse.json(
-        {
-          error: `Protein "${proteinName}" is not available for this item.`,
-        },
-        { status: 400 },
+    if (panAsian) {
+      const quote = await quoteStoredPanAsianSelection(
+        menuItemRow.title,
+        String(selectedProtein),
+      );
+
+      if ("error" in quote) {
+        return NextResponse.json({ error: quote.error }, { status: 400 });
+      }
+
+      pricing = quote;
+      storedProtein = quote.selection;
+    } else {
+      const proteinName = getProteinNameForPricing(selectedProtein) ?? selectedProtein;
+      const protein = proteinVariants.find(
+        (item) =>
+          item.name === proteinName &&
+          item.name.toLowerCase() !== "mutton",
+      );
+
+      if (!protein) {
+        return NextResponse.json(
+          {
+            error: `Protein "${proteinName}" is not available for this item.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      pricing = calculateMenuItemPricing(
+        menuItemRow as menuItem,
+        selectedProtein,
+        selectedSize,
       );
     }
-
-    const pricing = calculateMenuItemPricing(
-      menuItemRow as menuItem,
-      selectedProtein,
-      selectedSize,
-    );
     const { base_price: basePrice, protein_price: proteinPrice, price: unitPrice } =
       pricing;
 
@@ -182,7 +196,7 @@ export async function POST(request: Request) {
       .select("id, quantity")
       .eq("session_id", sessionId)
       .eq("menu_item_id", String(menuItemRow.id))
-      .eq("selected_protein", selectedProtein);
+      .eq("selected_protein", storedProtein);
 
     if (selectedSize) {
       existingQuery = existingQuery.eq("selected_size", selectedSize);
@@ -233,10 +247,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: "Cart updated.",
-        item: enrichCartItem(
-          updatedItem as CartItemRecord,
-          menuItemRow as menuItem,
-        ),
+        item: await pricedCartItem(updatedItem as CartItemRecord),
       });
     }
 
@@ -247,7 +258,7 @@ export async function POST(request: Request) {
         menu_item_id: String(menuItemRow.id),
         title: menuItemRow.title,
         image_url: menuItemRow.imageUrl,
-        selected_protein: selectedProtein,
+        selected_protein: storedProtein,
         selected_size: selectedSize,
         quantity,
         base_price: basePrice,
@@ -268,7 +279,7 @@ export async function POST(request: Request) {
             menu_item_id: String(menuItemRow.id),
             title: menuItemRow.title,
             image_url: menuItemRow.imageUrl,
-            selected_protein: selectedProtein,
+            selected_protein: storedProtein,
             quantity,
             base_price: basePrice,
             protein_price: proteinPrice,
@@ -281,10 +292,7 @@ export async function POST(request: Request) {
           return NextResponse.json({
             success: true,
             message: "Added to cart.",
-            item: enrichCartItem(
-              fallbackItem as CartItemRecord,
-              menuItemRow as menuItem,
-            ),
+            item: await pricedCartItem(fallbackItem as CartItemRecord),
           });
         }
       }
@@ -300,7 +308,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Added to cart.",
-      item: enrichCartItem(cartItem as CartItemRecord, menuItemRow as menuItem),
+      item: await pricedCartItem(cartItem as CartItemRecord),
     });
   } catch (error) {
     console.error("Add to cart error:", error);
@@ -339,18 +347,7 @@ export async function PATCH(req: Request) {
 
     if (cartError || !cartRow) throw cartError;
 
-    const { data: menuItemRow } = await supabaseAdmin
-      .from("MenuItem")
-      .select("*")
-      .eq("id", cartRow.menu_item_id)
-      .maybeSingle();
-
-    return NextResponse.json(
-      enrichCartItem(
-        cartRow as CartItemRecord,
-        (menuItemRow as menuItem | null) ?? null,
-      ),
-    );
+    return NextResponse.json(await pricedCartItem(cartRow as CartItemRecord));
   } catch (error) {
     console.error("PATCH /api/cart failed:", error);
 

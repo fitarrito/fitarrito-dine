@@ -16,6 +16,7 @@ import {
 import { calculateOrderTotals } from "@lib/orderTotals";
 import { repriceCartRows } from "@lib/pricedCart";
 import type { CartItemRecord } from "@lib/cartItemsServer";
+import { onlineOrderingBlock } from "@lib/storeOrdering";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +69,15 @@ async function resolveAmountPaise(body: {
 }
 
 export async function POST(request: Request) {
+  const orderingBlock = await onlineOrderingBlock();
+
+  if (orderingBlock) {
+    return NextResponse.json(
+      { error: orderingBlock.error },
+      { status: orderingBlock.status },
+    );
+  }
+
   const config = getRazorpayConfig();
 
   if (!config) {

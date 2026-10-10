@@ -16,7 +16,7 @@ import {
 } from "@lib/menuPricing";
 import { quoteSizePrice } from "@lib/mexicanMiniOffer";
 import { useAppDispatch } from "@lib/hooks";
-import { useOrderWindow } from "@lib/useOrderWindow";
+import { orderingActionsPaused, useOnlineOrdering } from "@lib/useOnlineOrdering";
 import { resolveProteinImageUrl } from "@lib/menuImages";
 import type { menuItem, ProteinVariant, SizeVariant } from "@/types/types";
 import styles from "./SelectProtein.module.css";
@@ -37,7 +37,8 @@ export default function SelectProtein({
   simple = false,
 }: SelectProteinProps) {
   const dispatch = useAppDispatch();
-  const orderWindow = useOrderWindow();
+  const ordering = useOnlineOrdering();
+  const orderingPaused = orderingActionsPaused(ordering.enabled);
 
   const sizeVariants = useMemo(
     () => item.sizeVariants ?? [],
@@ -88,7 +89,7 @@ export default function SelectProtein({
   };
 
   const handleAddToCart = async () => {
-    if (orderWindow === "closed" || isAdding) return;
+    if (orderingPaused || isAdding) return;
     if (hasSizeVariants && !selectedSizeName) {
       setActionError("Please select a size.");
       return;
@@ -274,18 +275,18 @@ export default function SelectProtein({
         <button
           type="button"
           className={`${styles.addToCartButton} ${
-            orderWindow === "closed" ? styles.addToCartButtonClosed : ""
+            orderingPaused ? styles.addToCartButtonClosed : ""
           }`}
           onClick={() => void handleAddToCart()}
-          disabled={orderWindow === "closed" || isAdding}
+          disabled={orderingPaused || isAdding}
           aria-busy={isAdding}
         >
-          {orderWindow === "closed" ? null : isAdding ? (
+          {orderingPaused ? null : isAdding ? (
             <FaSpinner className={styles.spinner} aria-hidden />
           ) : (
             <FaShoppingCart aria-hidden />
           )}
-          {orderWindow === "closed"
+          {orderingPaused
             ? "Ordering Closed"
             : isAdding
               ? "Adding..."

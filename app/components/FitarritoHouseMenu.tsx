@@ -13,7 +13,7 @@ import { GiMuscleUp } from "react-icons/gi";
 import { addToCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { useAppDispatch } from "@lib/hooks";
-import { useOrderWindow } from "@lib/useOrderWindow";
+import { orderingActionsPaused, useOnlineOrdering } from "@lib/useOnlineOrdering";
 import {
   resolveMenuItemImageUrl,
   resolveProteinImageUrl,
@@ -38,8 +38,9 @@ function FitarritoHouseCard({
   onCustomizeSalad?: (item: menuItem) => void;
 }) {
   const dispatch = useAppDispatch();
-  const orderWindow = useOrderWindow();
+  const ordering = useOnlineOrdering();
   const isSalad = isFitarritoHouseSalad(item);
+  const orderingPaused = orderingActionsPaused(ordering.enabled);
   const sizeVariants = item.sizeVariants ?? [];
   const [selectedSizeName, setSelectedSizeName] = useState<string>(
     sizeVariants[0]?.name ?? "",
@@ -84,7 +85,7 @@ function FitarritoHouseCard({
       return;
     }
 
-    if (orderWindow === "closed" || isAdding) return;
+    if (orderingPaused || isAdding) return;
 
     if (sizeVariants.length > 0 && !selectedSizeName) {
       setActionError("Please select a size.");
@@ -236,16 +237,16 @@ function FitarritoHouseCard({
           <button
             type="button"
             className={`${styles.addButton} ${
-              orderWindow === "closed" && !isSalad ? styles.addButtonClosed : ""
+              orderingPaused ? styles.addButtonClosed : ""
             }`}
             onClick={() => void handleAddToCart()}
-            disabled={(orderWindow === "closed" && !isSalad) || isAdding}
+            disabled={orderingPaused || isAdding}
             aria-busy={isAdding}
           >
             {isAdding ? (
               <FaSpinner className={styles.spinner} aria-hidden />
             ) : null}
-            {orderWindow === "closed" && !isSalad
+            {orderingPaused
               ? "Ordering Closed"
               : isAdding
                 ? "Adding..."

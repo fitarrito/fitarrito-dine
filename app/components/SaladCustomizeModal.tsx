@@ -14,7 +14,7 @@ import {
 import { calculateMenuItemPricing, getAvailableProteinVariants } from "@lib/menuPricing";
 import { resolveMenuItemImageUrl, resolveProteinImageUrl } from "@lib/menuImages";
 import { useAppDispatch } from "@lib/hooks";
-import { useOrderWindow } from "@lib/useOrderWindow";
+import { orderingActionsPaused, useOnlineOrdering } from "@lib/useOnlineOrdering";
 import type { menuItem, ProteinVariant, SizeVariant } from "@/types/types";
 import styles from "./SaladCustomizeModal.module.css";
 
@@ -41,7 +41,8 @@ export default function SaladCustomizeModal({
   onAddedToCart,
 }: SaladCustomizeModalProps) {
   const dispatch = useAppDispatch();
-  const orderWindow = useOrderWindow();
+  const ordering = useOnlineOrdering();
+  const orderingPaused = orderingActionsPaused(ordering.enabled);
   const sizeVariants = item.sizeVariants ?? [];
   const saladTypeOptions = getSaladTypeOptions(item);
   const toppingOptions = getSaladToppingOptions(item);
@@ -127,7 +128,7 @@ export default function SaladCustomizeModal({
   };
 
   const handleAddToCart = async () => {
-    if (orderWindow === "closed" || isAdding) return;
+    if (orderingPaused || isAdding) return;
     if (!selectedSaladType) return;
     if (sizeVariants.length > 0 && !selectedSizeName) return;
     if (availableProteins.length > 0 && !selectedProteinName) return;
@@ -388,11 +389,11 @@ export default function SaladCustomizeModal({
             <button
               type="button"
               className={`${styles.addButton} ${
-                orderWindow === "closed" ? styles.addButtonClosed : ""
+                orderingPaused ? styles.addButtonClosed : ""
               }`}
               onClick={() => void handleAddToCart()}
               disabled={
-                orderWindow === "closed" ||
+                orderingPaused ||
                 isAdding ||
                 !selectedSaladType ||
                 (sizeVariants.length > 0 && !selectedSizeName) ||
@@ -400,12 +401,12 @@ export default function SaladCustomizeModal({
               }
               aria-busy={isAdding}
             >
-              {orderWindow === "closed" ? null : isAdding ? (
+              {orderingPaused ? null : isAdding ? (
                 <FaSpinner className={styles.spinner} aria-hidden />
               ) : (
                 <FaShoppingCart aria-hidden />
               )}
-              {orderWindow === "closed"
+              {orderingPaused
                 ? "Ordering Closed"
                 : isAdding
                   ? "Adding..."

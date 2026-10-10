@@ -20,7 +20,7 @@ export default function SiteChrome({
         className={
           isStaffPage
             ? "flex flex-col w-full flex-1 px-4 py-6 sm:px-8"
-            : "flex flex-col w-full flex-1 m-4 sm:m-8 lg:m-10 pt-25"
+            : "flex flex-col w-full min-w-0 max-w-full flex-1 px-4 pb-4 sm:px-8 sm:pb-8 lg:px-10 lg:pb-10"
         }
       >
         {children}

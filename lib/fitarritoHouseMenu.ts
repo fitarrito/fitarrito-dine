@@ -3,6 +3,7 @@ import type {
   SaladVariant,
   ToppingVariant,
 } from "@/types/types";
+import { decodePanAsianSelection } from "@lib/panAsianOrder";
 
 const SALAD_SELECTION_DELIMITER = "||";
 
@@ -123,6 +124,16 @@ export function getCartItemCustomization(item: {
   selected_protein?: string | null;
   selected_size?: string | null;
 }) {
+  const panAsian = decodePanAsianSelection(item.selected_protein);
+
+  if (panAsian) {
+    return {
+      title: item.title,
+      protein: `${panAsian.category}: ${panAsian.ingredients.join(", ")}`,
+      toppings: null as string | null,
+    };
+  }
+
   const salad = decodeSaladProteinSelection(item.selected_protein);
 
   if (!salad) {

@@ -4,17 +4,13 @@ import {
   getSupabaseAdminConfig,
 } from "@lib/getSupabaseAdmin";
 import {
-  getMorningOpenLabel,
-  getNightCloseLabel,
-  getOrderWindow,
-} from "@lib/orderCutoff";
-import {
   isValidIndianMobile,
   normalizeIndianPhone,
 } from "@lib/normalizePhone";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { getDeliveryArea, getDeliveryAreaById } from "@lib/deliveryAreas";
 import { calculateOrderTotals } from "@lib/orderTotals";
+import { onlineOrderingBlock } from "@lib/storeOrdering";
 import { repriceCartRows } from "@lib/pricedCart";
 import type { CartItemRecord } from "@lib/cartItemsServer";
 import {
@@ -37,6 +33,15 @@ function normalizePaymentMethod(value: unknown) {
 }
 
 export async function POST(request: Request) {
+  const orderingBlock = await onlineOrderingBlock();
+
+  if (orderingBlock) {
+    return NextResponse.json(
+      { error: orderingBlock.error },
+      { status: orderingBlock.status },
+    );
+  }
+
   if (!getSupabaseAdminConfig()) {
     return NextResponse.json(
       {
@@ -137,15 +142,6 @@ export async function POST(request: Request) {
         : [customAddress, customArea, customCity, customPincode, customLandmark]
             .filter(Boolean)
             .join(", ");
-
-    if (getOrderWindow() === "closed") {
-      return NextResponse.json(
-        {
-          error: `Ordering is closed from ${getNightCloseLabel()} to ${getMorningOpenLabel()}. Please place your order after ${getMorningOpenLabel()}.`,
-        },
-        { status: 400 },
-      );
-    }
 
     const supabaseAdmin = getSupabaseAdminClient();
 

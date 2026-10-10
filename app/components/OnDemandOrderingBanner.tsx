@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { FaLock, FaSun } from "react-icons/fa";
-import { useOrderWindow } from "@lib/useOrderWindow";
 import {
-  getMorningOpenLabel,
-  getNightCloseLabel,
-} from "@lib/orderCutoff";
+  ONLINE_ORDERING_CLOSED_MESSAGE,
+  ONLINE_ORDERING_CLOSED_TITLE,
+} from "@lib/onlineOrdering";
+import { useOnlineOrdering } from "@lib/useOnlineOrdering";
 import styles from "./OnDemandOrderingBanner.module.css";
 
 const DEFAULT_SUBTITLE = "Enjoy our freshly prepared Asian bowls and curries!";
@@ -19,9 +19,8 @@ export default function OnDemandOrderingBanner({
   subtitle = DEFAULT_SUBTITLE,
 }: OnDemandOrderingBannerProps) {
   const [ready, setReady] = useState(false);
-  const orderWindow = useOrderWindow();
-  const morningOpen = getMorningOpenLabel();
-  const nightClose = getNightCloseLabel();
+  const ordering = useOnlineOrdering();
+  const manuallyClosed = ordering.enabled === false;
 
   useEffect(() => {
     setReady(true);
@@ -39,31 +38,25 @@ export default function OnDemandOrderingBanner({
         </div>
       </div>
 
-      {ready && orderWindow === "open" ? (
+      {ready && manuallyClosed ? (
+        <div className={styles.status}>
+          <span className={styles.closedIcon} aria-hidden>
+            <FaLock />
+          </span>
+          <div>
+            <p className={styles.statusTitle}>{ONLINE_ORDERING_CLOSED_TITLE}</p>
+            <p className={styles.statusMessage}>{ONLINE_ORDERING_CLOSED_MESSAGE}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {ready && ordering.checked && !manuallyClosed ? (
         <div className={styles.status}>
           <span className={styles.sunIcon} aria-hidden>
             <FaSun />
           </span>
           <div>
             <p className={styles.statusTitle}>Ordering is open</p>
-            <p className={styles.statusMessage}>
-              Place your order until <strong>{nightClose}</strong>
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      {ready && orderWindow === "closed" ? (
-        <div className={styles.status}>
-          <span className={styles.closedIcon} aria-hidden>
-            <FaLock />
-          </span>
-          <div>
-            <p className={styles.statusTitle}>Ordering is closed</p>
-            <p className={styles.statusMessage}>
-              Orders are closed from <strong>{nightClose}</strong> to{" "}
-              <strong>{morningOpen}</strong>.
-            </p>
           </div>
         </div>
       ) : null}

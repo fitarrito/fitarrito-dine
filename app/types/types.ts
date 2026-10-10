@@ -44,6 +44,8 @@ export interface menuItem {
   toppingVariants?: ToppingVariant[];
   selectedProtein?: string;
   selectedSize?: string;
+  panAsianPrices?: import("@lib/panAsianOrder").PanAsianPriceOption[];
+  panAsianIngredients?: import("@lib/panAsianOrder").PanAsianIngredient[];
 }
 
 export interface addOnsItem {

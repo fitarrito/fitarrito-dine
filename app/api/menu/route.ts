@@ -5,6 +5,7 @@ import {
   withTimeout,
 } from "@lib/getSupabaseServer";
 import { normalizeCuisineQuery } from "@lib/menuCuisine";
+import { loadPanAsianCatalog } from "@lib/panAsianCatalog";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,27 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json(data ?? []);
+    const items = data ?? [];
+
+    if (cuisine !== "Pan Asian" || items.length === 0) {
+      return NextResponse.json(items);
+    }
+
+    const catalog = await loadPanAsianCatalog(
+      items.map((item) => String(item.title ?? "")),
+    );
+
+    return NextResponse.json(
+      items.map((item) => ({
+        ...item,
+        panAsianPrices: catalog.prices.filter(
+          (option) => option.dish_title === item.title,
+        ),
+        panAsianIngredients: catalog.ingredients.filter(
+          (ingredient) => ingredient.dish_title === item.title,
+        ),
+      })),
+    );
   } catch (error) {
     console.error("GET /api/menu failed:", error);
 

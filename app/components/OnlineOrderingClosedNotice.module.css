@@ -1,0 +1,21 @@
+.notice {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  background: #fff7f7;
+  color: #7f1d1d;
+}
+
+.notice strong {
+  color: var(--customTheme, #fc1e1e);
+  font-size: 0.98rem;
+}
+
+.notice span {
+  color: #6b7280;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}

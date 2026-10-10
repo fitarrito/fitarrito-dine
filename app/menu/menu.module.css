@@ -11,7 +11,12 @@
 }
 
 .menuContainer {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  padding-top: 6.5rem;
 }
 
 .pageHeading {

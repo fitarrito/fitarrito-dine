@@ -48,7 +48,7 @@ const Header: React.FC = () => {
 
         <div className="flex justify-center">
           <div
-            className=" bg-nav-color-dark w-screen justify-between  shadow-customShadow-md laptop:w-[80vw] text-white inline-flex items-center py-1 mobile:py-3 px-1 md:px-4 lg laptop:rounded-full laptop:my-4  laptop:inline-flex overflow-visible"
+            className=" bg-nav-color-dark w-full max-w-full justify-between  shadow-customShadow-md laptop:w-[80vw] text-white inline-flex items-center py-1 mobile:py-3 px-1 md:px-4 lg laptop:rounded-full laptop:my-4  laptop:inline-flex overflow-visible"
             style={{ overflow: "visible" }}
           >
             <div className="flex items-center">

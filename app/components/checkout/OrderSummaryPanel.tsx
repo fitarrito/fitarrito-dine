@@ -14,10 +14,14 @@ import {
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import { removeCartItem } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
-import { getMorningOpenLabel, getNightCloseLabel } from "@lib/orderCutoff";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { calculateOrderTotals, GST_LABEL } from "@lib/orderTotals";
 import { formatRupees } from "@lib/razorpayFee";
+import {
+  ONLINE_ORDERING_CLOSED_MESSAGE,
+  ONLINE_ORDERING_CLOSED_TITLE,
+} from "@lib/onlineOrdering";
+import { useOnlineOrdering } from "@lib/useOnlineOrdering";
 import styles from "./OrderSummaryPanel.module.css";
 
 type OrderSummaryPanelProps = {
@@ -40,8 +44,8 @@ export default function OrderSummaryPanel({
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
   const subtotal = useAppSelector((state) => state.cart.totalAmt);
-  const morningOpen = getMorningOpenLabel();
-  const nightClose = getNightCloseLabel();
+  const ordering = useOnlineOrdering();
+  const orderingClosed = ordering.enabled === false;
   const isPayment = variant === "payment";
   const totals = calculateOrderTotals(subtotal);
   const totalAmount = totals.total;
@@ -188,10 +192,13 @@ export default function OrderSummaryPanel({
               <span>On-Demand Orders</span>
             </div>
 
-            <p className={styles.windowHint}>
-              Orders are open from <strong>{morningOpen}</strong> to{" "}
-              <strong>{nightClose}</strong>.
-            </p>
+            {orderingClosed ? (
+              <p className={styles.windowHint}>
+                <strong>{ONLINE_ORDERING_CLOSED_TITLE}</strong>
+                <br />
+                {ONLINE_ORDERING_CLOSED_MESSAGE}
+              </p>
+            ) : null}
           </div>
         </>
       ) : null}
@@ -199,8 +206,11 @@ export default function OrderSummaryPanel({
       <button
         type="button"
         className={styles.placeOrderButton}
-        disabled={placeOrderDisabled || cartItems.length === 0}
-        onClick={onPlaceOrder}
+        disabled={placeOrderDisabled || orderingClosed || cartItems.length === 0}
+        onClick={() => {
+          if (orderingClosed) return;
+          onPlaceOrder?.();
+        }}
       >
         {isPayment && !isSubmitting ? <FaLock aria-hidden /> : null}
         {isSubmitting ? submitLabel : submitLabel ?? defaultLabel}

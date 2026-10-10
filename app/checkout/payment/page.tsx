@@ -14,6 +14,7 @@ import {
   FaShieldAlt,
 } from "react-icons/fa";
 import CheckoutSteps from "@/components/checkout/CheckoutSteps";
+import OnlineOrderingClosedNotice from "@/components/OnlineOrderingClosedNotice";
 import OrderSummaryPanel from "@/components/checkout/OrderSummaryPanel";
 import { fetchCart, clearCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
@@ -41,6 +42,8 @@ import {
 import { formatRupees } from "@lib/razorpayFee";
 import { calculateOrderTotals } from "@lib/orderTotals";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
+import { ONLINE_ORDERING_CLOSED_TITLE } from "@lib/onlineOrdering";
+import { useOnlineOrdering } from "@lib/useOnlineOrdering";
 import styles from "./payment.module.css";
 
 function formatPhone(mobileNumber: string) {
@@ -68,6 +71,7 @@ export default function CheckoutPaymentPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitLabel, setSubmitLabel] = useState("Pay Now");
+  const ordering = useOnlineOrdering();
   const handledReturnRef = useRef(false);
 
   useEffect(() => {
@@ -207,6 +211,11 @@ export default function CheckoutPaymentPage() {
   const handlePay = async () => {
     if (!delivery || isSubmitting) return;
 
+    if (ordering.enabled === false) {
+      setFormError(ONLINE_ORDERING_CLOSED_TITLE);
+      return;
+    }
+
     setFormError(null);
     setIsSubmitting(true);
 
@@ -320,6 +329,7 @@ export default function CheckoutPaymentPage() {
         strategy="lazyOnload"
       />
       <CheckoutSteps currentStep={3} />
+      <OnlineOrderingClosedNotice />
 
       <div className={styles.layout}>
         <div className={styles.stack}>

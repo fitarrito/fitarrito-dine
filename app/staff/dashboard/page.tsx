@@ -12,6 +12,7 @@ import {
   PREPARATION_ESTIMATES,
   type PreparationMinutes,
 } from "@lib/whatsapp/customerConfirmation";
+import OrderingControl from "./OrderingControl";
 import styles from "./dashboard.module.css";
 
 type OrderItem = {
@@ -661,6 +662,8 @@ export default function StaffDashboardPage() {
         </div>
       </header>
 
+      <OrderingControl />
+
       {alertingIds.length > 0 ? (
         <div className={styles.alertBanner} role="status">
           <strong>
@@ -734,13 +737,6 @@ export default function StaffDashboardPage() {
                 : "Reconnecting"}
           </p>
           <p className={styles.hint}>Keep this dashboard open while you take orders.</p>
-          <button
-            className={styles.refresh}
-            type="button"
-            onClick={() => window.location.reload()}
-          >
-            <FaSyncAlt aria-hidden /> Refresh orders
-          </button>
         </div>
       ) : (
         <div className={styles.orders}>

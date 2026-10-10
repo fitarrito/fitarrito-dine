@@ -193,28 +193,17 @@
   font-size: 0.92rem;
 }
 
-.refresh,
 .refreshHeader {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
+  padding: 0.65rem 0.9rem;
   border: 1px solid #fecdd3;
+  border-radius: 10px;
   background: #fff;
   color: var(--customTheme, #fc1e1e);
   cursor: pointer;
   font-weight: 800;
-}
-
-.refresh {
-  margin-top: 1.15rem;
-  padding: 0.7rem 1rem;
-  border-radius: 12px;
-}
-
-.refreshHeader {
-  gap: 0.4rem;
-  padding: 0.65rem 0.9rem;
-  border-radius: 10px;
 }
 
 .logout,
@@ -296,6 +285,231 @@
   align-items: center;
   justify-content: center;
   background: #25d366;
+}
+
+.orderingLive,
+.orderingOffline {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, auto) auto;
+  gap: 0.9rem 1.25rem;
+  align-items: center;
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 18px;
+}
+
+.orderingLive {
+  border: 1px solid #d7f3e3;
+  background: #f3fbf6;
+  box-shadow: 0 10px 28px rgba(22, 163, 74, 0.06);
+}
+
+.orderingOffline {
+  border: 1px solid #fecaca;
+  background: #fff7f7;
+  box-shadow: 0 10px 28px rgba(252, 30, 30, 0.06);
+}
+
+.orderingMain {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.orderingMain h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.orderingMain p {
+  margin: 0.3rem 0 0;
+  color: #4b5563;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.liveWord {
+  color: #16a34a;
+}
+
+.offlineWord {
+  color: var(--customTheme, #fc1e1e);
+}
+
+.storeBadge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.1rem;
+  height: 3.1rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--customTheme, #fc1e1e);
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.06);
+  font-size: 1.25rem;
+}
+
+.liveDot,
+.offlineDot {
+  position: absolute;
+  right: 0.15rem;
+  bottom: 0.15rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid #fff;
+  border-radius: 999px;
+}
+
+.liveDot {
+  background: #22c55e;
+}
+
+.offlineDot {
+  background: var(--customTheme, #fc1e1e);
+}
+
+.orderingSchedule {
+  min-width: 0;
+}
+
+.scheduleLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.scheduleLine svg {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.updatedLabel {
+  margin: 0.35rem 0 0;
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.updatedTime {
+  margin: 0.1rem 0 0;
+  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.orderingActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.7rem;
+}
+
+.switchOn,
+.switchOff {
+  width: 3.35rem;
+  height: 1.9rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.18rem;
+  cursor: pointer;
+}
+
+.switchOn {
+  display: flex;
+  justify-content: flex-end;
+  background: #22c55e;
+}
+
+.switchOff {
+  display: flex;
+  justify-content: flex-start;
+  background: #d1d5db;
+}
+
+.switchOn span,
+.switchOff span {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.2);
+}
+
+.switchOn:disabled,
+.switchOff:disabled,
+.goOffline:disabled,
+.goOnline:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.goOffline,
+.goOnline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 8.5rem;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0.72rem 1rem;
+}
+
+.goOffline {
+  background: var(--customTheme, #fc1e1e);
+}
+
+.goOnline {
+  background: #16a34a;
+}
+
+.orderingSuccess,
+.orderingError {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-weight: 800;
+}
+
+.orderingSuccess {
+  color: #166534;
+}
+
+.orderingError {
+  color: #b91c1c;
+}
+
+@media (max-width: 860px) {
+  .topBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    justify-content: flex-start;
+  }
+
+  .orderingLive,
+  .orderingOffline {
+    grid-template-columns: 1fr;
+  }
+
+  .orderingActions {
+    align-items: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
 
 .filters {
