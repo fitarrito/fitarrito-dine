@@ -1,3 +1,18 @@
+:global(body > div:not([hidden])) {
+  min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+:global(header.sticky img) {
+  width: auto;
+  max-height: 3rem;
+}
+
+:global(header.sticky + main) {
+  padding-top: 5.25rem;
+}
+
 .overlay {
   position: fixed;
   inset: 0;

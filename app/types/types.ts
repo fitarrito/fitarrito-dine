@@ -46,6 +46,7 @@ export interface menuItem {
   selectedSize?: string;
   panAsianPrices?: import("@lib/panAsianOrder").PanAsianPriceOption[];
   panAsianIngredients?: import("@lib/panAsianOrder").PanAsianIngredient[];
+  asianStartersGravyPrices?: import("@lib/asianStartersGravyOrder").AsianStartersGravyPriceOption[];
 }
 
 export interface addOnsItem {

@@ -13,14 +13,29 @@ export type DineInCategory = {
 
 export const DINE_IN_CATEGORIES: DineInCategory[] = [
   {
+    id: "soups",
+    label: "Soups",
+    imageUrl: "/images/soups-icon.png",
+  },
+  {
     id: "mexican",
     label: "Mexican",
-    imageUrl: "/images/mexicanIcon.png",
+    imageUrl: "/images/mexican-feast.png",
   },
   {
     id: "pan-asian",
     label: "Pan Asian",
-    imageUrl: "/images/koreanIcon.png",
+    imageUrl: "/images/pan-asian-bowl.png",
+  },
+  {
+    id: "asian-starters-gravy",
+    label: "Asian Starters & Gravy",
+    imageUrl: "/images/asian-starters-platter.png",
+  },
+  {
+    id: "desserts",
+    label: "Desserts",
+    imageUrl: "/images/desserts-icon.png",
   },
   {
     id: "fitarrito-house",
@@ -51,6 +66,7 @@ export default function MenuCategoryNav({
       <div className={styles.subRow}>
         {VISIBLE_DINE_IN_CATEGORIES.map((category) => {
           const active = activeCategory === category.id;
+          const wideIcon = category.id !== "fitarrito-house";
 
           return (
             <Link
@@ -60,12 +76,14 @@ export default function MenuCategoryNav({
               aria-current={active ? "page" : undefined}
             >
               {category.imageUrl ? (
-                <span className={styles.icon}>
+                <span
+                  className={`${styles.icon} ${wideIcon ? styles.iconWide : ""}`}
+                >
                   <Image
                     src={category.imageUrl}
                     alt=""
-                    width={28}
-                    height={28}
+                    width={wideIcon ? 96 : 28}
+                    height={wideIcon ? 64 : 28}
                     className={styles.iconImage}
                   />
                 </span>

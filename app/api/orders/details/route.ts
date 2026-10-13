@@ -4,6 +4,8 @@ import {
   getSupabaseAdminConfig,
 } from "@lib/getSupabaseAdmin";
 import { getPreparationEstimate } from "@lib/whatsapp/customerConfirmation";
+import { decodeDessertSelection } from "@lib/desserts";
+import { decodeSoupSelection } from "@lib/soups";
 
 export const dynamic = "force-dynamic";
 
@@ -129,7 +131,11 @@ export async function POST(request: Request) {
       items: (items ?? []).map((item) => ({
         id: item.id,
         name: item.item_name,
-        protein: item.selected_protein,
+        protein:
+          decodeDessertSelection(item.selected_protein) ||
+          decodeSoupSelection(item.selected_protein)
+            ? null
+            : item.selected_protein,
         unitPrice: Number(item.unit_price),
         quantity: Number(item.quantity),
         basePrice: Number(item.base_price),

@@ -7,8 +7,12 @@ import {
 import { type CartItemRecord } from "@lib/cartItemsServer";
 import { repriceCartRows } from "@lib/pricedCart";
 import { calculateMenuItemPricing, findSizeVariant } from "@lib/menuPricing";
+import { quoteStoredAsianStartersGravySelection } from "@lib/asianStartersGravyCatalog";
+import { isAsianStartersGravyCuisine } from "@lib/asianStartersGravyOrder";
 import { quoteStoredPanAsianSelection } from "@lib/panAsianCatalog";
 import { isPanAsianCuisine } from "@lib/panAsianOrder";
+import { isDessertTitle, quoteDessertSelection } from "@lib/desserts";
+import { isSoupsCategoryName, quoteSoupSelection } from "@lib/soups";
 import { getProteinNameForPricing } from "@lib/fitarritoHouseMenu";
 import type { menuItem, ProteinVariant } from "@/types/types";
 import { onlineOrderingBlock } from "@lib/storeOrdering";
@@ -96,7 +100,7 @@ export async function POST(request: Request) {
       supabaseAdmin
         .from("MenuItem")
         .select(
-          "id, title, price, imageUrl, proteinVariants, sizeVariants, order_type, cuisine",
+          "id, title, price, imageUrl, proteinVariants, sizeVariants, order_type, cuisine, categoryId",
         )
         .eq("id", menuItemId)
         .single(),
@@ -146,6 +150,8 @@ export async function POST(request: Request) {
     }
 
     const panAsian = isPanAsianCuisine(menuItemRow.cuisine);
+    const asianStartersGravy = isAsianStartersGravyCuisine(menuItemRow.cuisine);
+    const dessert = isDessertTitle(menuItemRow.title);
     let pricing: {
       base_price: number;
       protein_price: number;
@@ -153,8 +159,71 @@ export async function POST(request: Request) {
     };
     let storedProtein = selectedProtein;
 
-    if (panAsian) {
-      const quote = await quoteStoredPanAsianSelection(
+    if (dessert) {
+      const quote = quoteDessertSelection(menuItemRow.title, String(selectedProtein));
+
+      if ("error" in quote) {
+        return NextResponse.json({ error: quote.error }, { status: 400 });
+      }
+
+      pricing = quote;
+      storedProtein = quote.selection;
+    } else if (panAsian) {
+      const categoryId = Number(menuItemRow.categoryId);
+      const hasCategoryId = Number.isInteger(categoryId) && categoryId > 0;
+      let categoryName: string | null = null;
+
+      if (hasCategoryId) {
+        const { data: categoryRow, error: categoryError } = await withTimeout(
+          supabaseAdmin
+            .from("Category")
+            .select("name")
+            .eq("id", categoryId)
+            .maybeSingle(),
+          10_000,
+          "Soup category lookup",
+        );
+
+        if (categoryError) {
+          console.error("Soup category lookup failed:", {
+            menuItemId,
+            categoryId,
+            message: categoryError.message,
+          });
+
+          return NextResponse.json(
+            { error: "Unable to price this menu item." },
+            { status: 500 },
+          );
+        }
+
+        categoryName = categoryRow?.name ?? null;
+      }
+
+      if (isSoupsCategoryName(categoryName)) {
+        const quote = quoteSoupSelection(menuItemRow.price, String(selectedProtein));
+
+        if ("error" in quote) {
+          return NextResponse.json({ error: quote.error }, { status: 400 });
+        }
+
+        pricing = quote;
+        storedProtein = quote.selection;
+      } else {
+        const quote = await quoteStoredPanAsianSelection(
+          menuItemRow.title,
+          String(selectedProtein),
+        );
+
+        if ("error" in quote) {
+          return NextResponse.json({ error: quote.error }, { status: 400 });
+        }
+
+        pricing = quote;
+        storedProtein = quote.selection;
+      }
+    } else if (asianStartersGravy) {
+      const quote = await quoteStoredAsianStartersGravySelection(
         menuItemRow.title,
         String(selectedProtein),
       );

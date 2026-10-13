@@ -4,6 +4,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import WebSocket from "ws";
 import { getSupabaseAdminClient, getSupabaseAdminConfig } from "@lib/getSupabaseAdmin";
 import { getPreparationEstimate } from "@lib/whatsapp/customerConfirmation";
+import { decodeDessertSelection } from "@lib/desserts";
+import { decodeSoupSelection } from "@lib/soups";
 
 const ACTIVE_STATUSES = ["pending", "confirmed", "preparing"];
 
@@ -124,7 +126,11 @@ function mapOrder(order: OrderRow): StaffOrder {
     items: (order.order_items ?? []).map((item) => ({
       id: item.id,
       name: item.item_name,
-      protein: item.selected_protein,
+      protein:
+        decodeDessertSelection(item.selected_protein) ||
+        decodeSoupSelection(item.selected_protein)
+          ? null
+          : item.selected_protein,
       quantity: item.quantity,
     })),
   };

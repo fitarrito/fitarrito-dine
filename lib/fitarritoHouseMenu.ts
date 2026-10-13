@@ -3,6 +3,9 @@ import type {
   SaladVariant,
   ToppingVariant,
 } from "@/types/types";
+import { decodeAsianStartersGravySelection } from "@lib/asianStartersGravyOrder";
+import { decodeDessertSelection } from "@lib/desserts";
+import { decodeSoupSelection } from "@lib/soups";
 import { decodePanAsianSelection } from "@lib/panAsianOrder";
 
 const SALAD_SELECTION_DELIMITER = "||";
@@ -124,6 +127,27 @@ export function getCartItemCustomization(item: {
   selected_protein?: string | null;
   selected_size?: string | null;
 }) {
+  if (
+    decodeDessertSelection(item.selected_protein) ||
+    decodeSoupSelection(item.selected_protein)
+  ) {
+    return {
+      title: item.title,
+      protein: null,
+      toppings: null as string | null,
+    };
+  }
+
+  const asianStartersGravy = decodeAsianStartersGravySelection(item.selected_protein);
+
+  if (asianStartersGravy) {
+    return {
+      title: item.title,
+      protein: asianStartersGravy.category === "Fixed" ? null : asianStartersGravy.category,
+      toppings: null as string | null,
+    };
+  }
+
   const panAsian = decodePanAsianSelection(item.selected_protein);
 
   if (panAsian) {

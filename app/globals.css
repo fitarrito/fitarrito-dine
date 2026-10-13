@@ -19,13 +19,30 @@
 html,
 body {
   max-width: 100%;
-  overflow-x: clip;
+  min-height: 100dvh;
 }
 
 body {
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+body > div:not([hidden]) {
+  min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+header.sticky img {
+  width: auto;
+  max-height: 3rem;
+}
+
+header.sticky + main {
+  padding-top: 5.25rem;
 }
 
 @layer components {

@@ -18,7 +18,7 @@ const Header: React.FC = () => {
     <header className="sticky top-0 z-50">
       <div
         ref={navRef}
-        className={`fixed top-0 left-0 z-50 w-full items-center`}
+        className="fixed top-0 left-0 z-50 w-full items-center"
         style={{
           background: `
             radial-gradient(
@@ -57,7 +57,14 @@ const Header: React.FC = () => {
                   href="/"
                   className=" transition ease-in-out duration-150  px-3 py-1 justify-center mobile:px-3 mobile:py-2 rounded-xl text-xs mobile:text-base min-w-[50px] mobile:w-[50px]  flex"
                 >
-                  <Image src={logo} alt="UTP-Logo" width={55} height={55} />
+                  <Image
+                    src={logo}
+                    alt="Fitarrito logo"
+                    width={55}
+                    height={55}
+                    priority
+                    style={{ width: "auto", height: "3rem" }}
+                  />
                 </Link>
               </div>
               <div>
@@ -67,9 +74,11 @@ const Header: React.FC = () => {
                 >
                   <Image
                     src={textImage}
-                    alt="UTP-Logo"
+                    alt="Fitarrito"
                     width={130}
                     height={90}
+                    priority
+                    style={{ width: "auto", height: "2.5rem" }}
                   />
                 </Link>
               </div>

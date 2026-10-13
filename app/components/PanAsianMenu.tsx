@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { FaChevronDown, FaLeaf, FaMinus, FaPlus, FaSpinner } from "react-icons/fa";
+import { FaChevronDown, FaLeaf, FaMinus, FaPlus, FaShoppingCart, FaSpinner } from "react-icons/fa";
 import { GiChickenLeg, GiShrimp } from "react-icons/gi";
 import { addToCart } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
@@ -19,6 +19,8 @@ import {
   type PanAsianIngredient,
 } from "@lib/panAsianOrder";
 import type { menuItem } from "@/types/types";
+import cardStyles from "./SoupsMenu.module.css";
+import proteinStyles from "./AsianStartersGravyMenu.module.css";
 import styles from "./PanAsianMenu.module.css";
 
 const INGREDIENT_ICONS: Record<string, string> = {
@@ -32,6 +34,27 @@ const INGREDIENT_ICONS: Record<string, string> = {
 
 function formatRupee(amount: number) {
   return `₹${Math.round(amount)}`;
+}
+
+function SectionMark() {
+  return (
+    <svg className={cardStyles.kickerIcon} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M6 11h12M8 11c0 3.2 1.6 5.5 4 5.5s4-2.3 4-5.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9 8.5c.2-1.2.8-2 1.2-2.4M12 7.8c.2-1.3.9-2.1 1.3-2.5M15 8.5c.2-1 .6-1.6.9-2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 function categoryIcon(category: PanAsianCategory) {
@@ -79,9 +102,15 @@ function PanAsianMenuCard({
         : []
       : categoryIngredients.map((row) => row.ingredient_name);
   const canAdd = chosenIngredients.length > 0 && selectedPrice > 0;
+  const needsProtein = !orderingPaused && !canAdd;
 
   const handleAddToCart = async () => {
-    if (orderingPaused || isAdding || !canAdd) return;
+    if (orderingPaused || isAdding) return;
+
+    if (!canAdd) {
+      setActionError("Choose one protein.");
+      return;
+    }
 
     setIsAdding(true);
     setActionError(null);
@@ -111,22 +140,28 @@ function PanAsianMenuCard({
   };
 
   return (
-    <article className={styles.card}>
-      <div className={styles.imageWrap}>
+    <article className={`${cardStyles.card} ${styles.bowlCard}`}>
+      <div className={`${cardStyles.imageWrap} ${styles.bowlImage}`}>
         <Image
           src={resolveMenuItemImageUrl(item)}
           alt={item.title}
           fill
-          className={styles.cardImage}
-          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+          className={cardStyles.cardImage}
+          sizes="(min-width: 768px) 11rem, 100vw"
         />
+        <span className={`${cardStyles.stroke} ${cardStyles.strokeTop}`} aria-hidden="true" />
+        <span className={`${cardStyles.stroke} ${cardStyles.strokeBottom}`} aria-hidden="true" />
       </div>
 
-      <div className={styles.cardBody}>
-        <h3 className={styles.cardTitle}>{item.title}</h3>
-        <p className={styles.cardDescription}>{item.description}</p>
+      <div className={cardStyles.body}>
+        <p className={cardStyles.kicker}>
+          <SectionMark />
+          Pan Asian
+        </p>
+        <h3 className={cardStyles.title}>{item.title}</h3>
+        {item.description ? <p className={cardStyles.description}>{item.description}</p> : null}
 
-        <div className={styles.categoryRow}>
+        <div className={proteinStyles.proteins}>
           {PAN_ASIAN_CATEGORIES.map((option) => {
             const price = prices.find((row) => row.category === option);
 
@@ -138,7 +173,7 @@ function PanAsianMenuCard({
               <button
                 key={option}
                 type="button"
-                className={`${styles.categoryButton} ${active ? styles.categoryButtonActive : ""}`}
+                className={`${proteinStyles.protein} ${active ? proteinStyles.proteinActive : ""}`}
                 onClick={() => {
                   setCategory(option);
                   setActionError(null);
@@ -146,11 +181,9 @@ function PanAsianMenuCard({
                 }}
                 aria-pressed={active}
               >
-                <span className={styles.categoryIcon}>{categoryIcon(option)}</span>
-                <span>
-                  {option}
-                  <strong>{formatRupee(price.price)}</strong>
-                </span>
+                <span className={proteinStyles.proteinIcon}>{categoryIcon(option)}</span>
+                <span>{option}</span>
+                <strong>{formatRupee(price.price)}</strong>
               </button>
             );
           })}
@@ -192,9 +225,9 @@ function PanAsianMenuCard({
           </div>
         ) : null}
 
-        <div className={styles.cardFooter}>
-          <p className={styles.price}>{formatRupee(selectedPrice)}</p>
-          <div className={styles.quantity}>
+        <p className={cardStyles.price}>{formatRupee(selectedPrice)}</p>
+        <div className={cardStyles.actions}>
+          <div className={cardStyles.quantity}>
             <button
               type="button"
               onClick={() => setQuantity((current) => Math.max(1, current - 1))}
@@ -213,16 +246,27 @@ function PanAsianMenuCard({
           </div>
           <button
             type="button"
-            className={`${styles.addButton} ${orderingPaused ? styles.addButtonClosed : ""}`}
+            className={`${cardStyles.addButton} ${
+              orderingPaused
+                ? cardStyles.addButtonClosed
+                : needsProtein
+                  ? proteinStyles.addButtonInactive
+                  : ""
+            }`}
             onClick={() => void handleAddToCart()}
-            disabled={orderingPaused || isAdding || !canAdd}
+            disabled={orderingPaused || isAdding}
+            aria-disabled={needsProtein || orderingPaused || isAdding}
             aria-busy={isAdding}
           >
-            {isAdding ? <FaSpinner className={styles.spinner} aria-hidden /> : null}
+            {isAdding ? (
+              <FaSpinner className={cardStyles.spinner} aria-hidden />
+            ) : (
+              <FaShoppingCart aria-hidden />
+            )}
             {orderingPaused ? "Ordering Closed" : isAdding ? "Adding..." : "Add to Cart"}
           </button>
         </div>
-        {actionError ? <p className={styles.actionError}>{actionError}</p> : null}
+        {actionError ? <p className={cardStyles.actionError}>{actionError}</p> : null}
       </div>
     </article>
   );
@@ -277,20 +321,20 @@ export default function PanAsianMenu({ items, onAddedToCart }: PanAsianMenuProps
   );
 
   return (
-    <section className={styles.section}>
-      <header className={styles.heading}>
+    <section className={cardStyles.section}>
+      <header className={cardStyles.heading}>
         <h2>Pan Asian</h2>
         <p>Bold flavours from across Asia.</p>
       </header>
 
       {dishes.length > 0 ? (
-        <div className={styles.grid}>
+        <div className={cardStyles.list}>
           {dishes.map((item) => (
             <PanAsianMenuCard key={item.id} item={item} onAddedToCart={onAddedToCart} />
           ))}
         </div>
       ) : (
-        <p className={styles.comingSoon}>Pan Asian bowls are not available right now.</p>
+        <p className={cardStyles.empty}>Pan Asian bowls are not available right now.</p>
       )}
     </section>
   );

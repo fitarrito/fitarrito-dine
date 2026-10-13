@@ -1,4 +1,6 @@
 import { formatRupees } from "@lib/razorpayFee";
+import { decodeDessertSelection } from "@lib/desserts";
+import { decodeSoupSelection } from "@lib/soups";
 
 export type OrderWhatsAppItem = {
   item_name: string;
@@ -48,7 +50,10 @@ export function formatOrderWhatsAppMessage(
     .map((item) => {
       const lineTotal = item.unit_price * item.quantity;
       const details = [
-        item.selected_protein,
+        decodeDessertSelection(item.selected_protein) ||
+        decodeSoupSelection(item.selected_protein)
+          ? null
+          : item.selected_protein,
         item.selected_size ? `Size: ${item.selected_size}` : null,
         item.selected_toppings ? `Toppings: ${item.selected_toppings}` : null,
       ]

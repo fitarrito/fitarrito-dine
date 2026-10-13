@@ -8,6 +8,8 @@ import {
   normalizeIndianPhone,
 } from "@lib/normalizePhone";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
+import { decodeDessertSelection } from "@lib/desserts";
+import { decodeSoupSelection } from "@lib/soups";
 import { getDeliveryArea, getDeliveryAreaById } from "@lib/deliveryAreas";
 import { calculateOrderTotals } from "@lib/orderTotals";
 import { onlineOrderingBlock } from "@lib/storeOrdering";
@@ -316,7 +318,12 @@ export async function POST(request: Request) {
         order_id: order.id,
         menu_item_id: item.menu_item_id,
         item_name: customization.title,
-        selected_protein: proteinDetails || item.selected_protein,
+        selected_protein:
+          proteinDetails ||
+          (decodeDessertSelection(item.selected_protein) ||
+          decodeSoupSelection(item.selected_protein)
+            ? null
+            : item.selected_protein),
         base_price: Number(item.base_price ?? 0),
         protein_price: Number(item.protein_price ?? 0),
         unit_price: Number(item.price),

@@ -5,6 +5,7 @@ import "./globals.css";
 import { Providers } from "./provider";
 import SiteChrome from "./components/SiteChrome";
 import { isStaffHostHeaderList } from "@lib/staffHost";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

@@ -1,0 +1,48 @@
+.groupTitle {
+  margin: 1.15rem 0 0.65rem;
+  color: #111827;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.proteins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.protein {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.15rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.protein strong {
+  font-weight: 700;
+}
+
+.proteinActive {
+  border-color: var(--customTheme, #fc1e1e);
+  background: #fff5f5;
+  color: var(--customTheme, #fc1e1e);
+}
+
+.proteinIcon {
+  display: inline-flex;
+  font-size: 0.95rem;
+}
+
+.addButtonInactive {
+  background: #e5e7eb;
+  color: #6b7280;
+  cursor: pointer;
+}
