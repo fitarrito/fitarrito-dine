@@ -11,6 +11,8 @@ export type PlaceRestaurantOrderInput = {
   city: string;
   pincode: string;
   landmark?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   deliveryInstructions?: string;
   paymentMethod: string;
   razorpayOrderId?: string;

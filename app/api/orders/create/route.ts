@@ -11,6 +11,12 @@ import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { decodeDessertSelection } from "@lib/desserts";
 import { decodeSoupSelection } from "@lib/soups";
 import { getDeliveryArea, getDeliveryAreaById } from "@lib/deliveryAreas";
+import {
+  LOCATION_REQUIRED_MESSAGE,
+  OUTSIDE_DELIVERY_ZONE_MESSAGE,
+  isInsideDeliveryZone,
+  parseDeliveryCoordinate,
+} from "@lib/deliveryZone";
 import { calculateOrderTotals } from "@lib/orderTotals";
 import { onlineOrderingBlock } from "@lib/storeOrdering";
 import { repriceCartRows } from "@lib/pricedCart";
@@ -68,6 +74,8 @@ export async function POST(request: Request) {
       city,
       pincode,
       landmark,
+      latitude,
+      longitude,
       deliveryInstructions,
       paymentMethod = "razorpay",
       razorpayOrderId,
@@ -127,6 +135,28 @@ export async function POST(request: Request) {
     const customCity = String(city ?? "").trim();
     const customPincode = String(pincode ?? "").trim();
     const customLandmark = String(landmark ?? "").trim();
+
+    const deliveryCoordinate =
+      addressType === "normal_address"
+        ? parseDeliveryCoordinate(latitude, longitude)
+        : null;
+
+    if (addressType === "normal_address" && !deliveryCoordinate) {
+      return NextResponse.json(
+        { error: LOCATION_REQUIRED_MESSAGE },
+        { status: 400 },
+      );
+    }
+
+    if (
+      deliveryCoordinate &&
+      !isInsideDeliveryZone(deliveryCoordinate.latitude, deliveryCoordinate.longitude)
+    ) {
+      return NextResponse.json(
+        { error: OUTSIDE_DELIVERY_ZONE_MESSAGE },
+        { status: 400 },
+      );
+    }
 
     if (
       addressType === "normal_address" &&
@@ -259,6 +289,8 @@ export async function POST(request: Request) {
         addressType === "normal_address" && customLandmark
           ? customLandmark
           : null,
+      delivery_latitude: deliveryCoordinate?.latitude ?? null,
+      delivery_longitude: deliveryCoordinate?.longitude ?? null,
       delivery_instructions: deliveryInstructions?.trim() || null,
       subtotal,
       delivery_charge: deliveryCharge,

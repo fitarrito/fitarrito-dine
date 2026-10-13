@@ -21,6 +21,8 @@ const ORDER_COLUMNS = `
   delivery_city,
   delivery_pincode,
   delivery_landmark,
+  delivery_latitude,
+  delivery_longitude,
   total,
   payment_method,
   status,
@@ -54,6 +56,8 @@ type OrderRow = {
   delivery_city?: string | null;
   delivery_pincode?: string | null;
   delivery_landmark?: string | null;
+  delivery_latitude?: number | null;
+  delivery_longitude?: number | null;
   total: number | string;
   payment_method: string;
   status: string;
@@ -94,12 +98,18 @@ function paymentStatus(method: string) {
 
 function deliveryLocation(order: OrderRow) {
   if (order.delivery_address_type === "normal_address") {
+    const mapLink =
+      order.delivery_latitude != null && order.delivery_longitude != null
+        ? `https://maps.google.com/?q=${order.delivery_latitude},${order.delivery_longitude}`
+        : null;
+
     return [
       order.delivery_address,
       order.delivery_area,
       order.delivery_city,
       order.delivery_pincode,
       order.delivery_landmark,
+      mapLink,
     ]
       .map((value) => value?.trim())
       .filter(Boolean)

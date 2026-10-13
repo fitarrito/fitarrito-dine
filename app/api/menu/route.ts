@@ -10,6 +10,10 @@ import { loadPanAsianCatalog } from "@lib/panAsianCatalog";
 
 export const dynamic = "force-dynamic";
 
+const noStore = {
+  headers: { "Cache-Control": "private, no-store, max-age=0" },
+};
+
 export async function GET(request: Request) {
   if (!getSupabaseConfig()) {
     return NextResponse.json(
@@ -17,7 +21,7 @@ export async function GET(request: Request) {
         error:
           "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.",
       },
-      { status: 503 },
+      { status: 503, ...noStore },
     );
   }
 
@@ -41,7 +45,7 @@ export async function GET(request: Request) {
     const items = data ?? [];
 
     if (items.length === 0) {
-      return NextResponse.json(items);
+      return NextResponse.json(items, noStore);
     }
 
     if (cuisine === "Pan Asian") {
@@ -59,6 +63,7 @@ export async function GET(request: Request) {
             (ingredient) => ingredient.dish_title === item.title,
           ),
         })),
+        noStore,
       );
     }
 
@@ -74,10 +79,11 @@ export async function GET(request: Request) {
             (option) => option.dish_title === item.title,
           ),
         })),
+        noStore,
       );
     }
 
-    return NextResponse.json(items);
+    return NextResponse.json(items, noStore);
   } catch (error) {
     console.error("GET /api/menu failed:", error);
 
@@ -86,7 +92,7 @@ export async function GET(request: Request) {
         error:
           error instanceof Error ? error.message : "Failed to fetch menu",
       },
-      { status: 500 },
+      { status: 500, ...noStore },
     );
   }
 }

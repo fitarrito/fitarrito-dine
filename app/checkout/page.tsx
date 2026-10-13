@@ -12,6 +12,9 @@ import {
   FaUser,
 } from "react-icons/fa";
 import CheckoutSteps from "@/components/checkout/CheckoutSteps";
+import DeliveryLocationPicker, {
+  type SelectedDeliveryLocation,
+} from "@/components/checkout/DeliveryLocationPicker";
 import OnlineOrderingClosedNotice from "@/components/OnlineOrderingClosedNotice";
 import OrderSummaryPanel from "@/components/checkout/OrderSummaryPanel";
 import { fetchCart } from "@lib/features/cartSlice";
@@ -33,6 +36,11 @@ import {
   type DeliveryAddressType,
 } from "@lib/checkoutDelivery";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
+import {
+  LOCATION_REQUIRED_MESSAGE,
+  OUTSIDE_DELIVERY_ZONE_MESSAGE,
+  isInsideDeliveryZone,
+} from "@lib/deliveryZone";
 import { ONLINE_ORDERING_CLOSED_TITLE } from "@lib/onlineOrdering";
 import { useOnlineOrdering } from "@lib/useOnlineOrdering";
 import styles from "./checkout.module.css";
@@ -80,6 +88,8 @@ export default function CheckoutPage() {
       pincode: addressType === "selected_location" ? current.pincode : "",
       landmark: addressType === "selected_location" ? "" : current.landmark,
       city: current.city || "Chennai",
+      latitude: addressType === "normal_address" ? current.latitude : null,
+      longitude: addressType === "normal_address" ? current.longitude : null,
     }));
     setFormError(null);
   };
@@ -94,8 +104,27 @@ export default function CheckoutPage() {
       city: "Chennai",
       pincode: location.pincode,
       landmark: "",
+      latitude: null,
+      longitude: null,
     }));
     setFormError(null);
+  };
+
+  const applySelectedLocation = (
+    location: SelectedDeliveryLocation,
+    zoneMessage: string | null,
+  ) => {
+    setForm((current) => ({
+      ...current,
+      addressType: "normal_address",
+      address: location.address || current.address,
+      area: location.area || current.area,
+      city: location.city || current.city || "Chennai",
+      pincode: location.pincode || current.pincode,
+      latitude: location.latitude,
+      longitude: location.longitude,
+    }));
+    setFormError(zoneMessage);
   };
 
   const updateMobileNumber = (
@@ -119,6 +148,16 @@ export default function CheckoutPage() {
     }
 
     if (form.addressType === "normal_address") {
+      if (form.latitude == null || form.longitude == null) {
+        setFormError(LOCATION_REQUIRED_MESSAGE);
+        return;
+      }
+
+      if (!isInsideDeliveryZone(form.latitude, form.longitude)) {
+        setFormError(OUTSIDE_DELIVERY_ZONE_MESSAGE);
+        return;
+      }
+
       if (
         !form.address.trim() ||
         !form.area.trim() ||
@@ -284,6 +323,11 @@ export default function CheckoutPage() {
               </div>
             ) : (
               <div className={styles.addressFields}>
+                <DeliveryLocationPicker
+                  latitude={form.latitude}
+                  longitude={form.longitude}
+                  onChange={applySelectedLocation}
+                />
                 <label className={styles.field}>
                   <span className={styles.label}>
                     Address <span className={styles.required}>*</span>

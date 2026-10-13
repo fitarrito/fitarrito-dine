@@ -114,6 +114,8 @@ export default function CheckoutPaymentPage() {
       city: delivery.city,
       pincode: delivery.pincode,
       landmark: delivery.landmark,
+      latitude: delivery.latitude,
+      longitude: delivery.longitude,
       deliveryInstructions: delivery.deliveryInstructions,
       paymentMethod: "razorpay",
       razorpayOrderId: paymentIds?.razorpayOrderId,

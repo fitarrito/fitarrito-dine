@@ -1,3 +1,5 @@
+import { isInsideDeliveryZone, parseDeliveryCoordinate } from "@lib/deliveryZone";
+
 export type DeliveryAddressType = "selected_location" | "normal_address";
 
 export type CheckoutDelivery = {
@@ -10,6 +12,8 @@ export type CheckoutDelivery = {
   landmark: string;
   city: string;
   pincode: string;
+  latitude: number | null;
+  longitude: number | null;
   deliveryInstructions: string;
 };
 
@@ -25,6 +29,8 @@ export const EMPTY_CHECKOUT_DELIVERY: CheckoutDelivery = {
   landmark: "",
   city: "Chennai",
   pincode: "",
+  latitude: null,
+  longitude: null,
   deliveryInstructions: "",
 };
 
@@ -47,6 +53,7 @@ export function loadCheckoutDelivery(): CheckoutDelivery | null {
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as Partial<CheckoutDelivery>;
+    const coordinate = parseDeliveryCoordinate(parsed.latitude, parsed.longitude);
 
     return {
       ...EMPTY_CHECKOUT_DELIVERY,
@@ -55,6 +62,8 @@ export function loadCheckoutDelivery(): CheckoutDelivery | null {
         parsed.addressType === "normal_address"
           ? "normal_address"
           : "selected_location",
+      latitude: coordinate?.latitude ?? null,
+      longitude: coordinate?.longitude ?? null,
     };
   } catch {
     return null;
@@ -81,7 +90,10 @@ export function isCheckoutDeliveryComplete(data: CheckoutDelivery) {
       data.address.trim() &&
         data.area.trim() &&
         data.city.trim() &&
-        data.pincode.trim(),
+        data.pincode.trim() &&
+        data.latitude != null &&
+        data.longitude != null &&
+        isInsideDeliveryZone(data.latitude, data.longitude),
     );
   }
 

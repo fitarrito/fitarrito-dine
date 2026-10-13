@@ -1,7 +1,6 @@
 :global(body > div:not([hidden])) {
   min-height: 100dvh;
   max-width: 100%;
-  overflow-x: hidden;
 }
 
 :global(header.sticky img) {

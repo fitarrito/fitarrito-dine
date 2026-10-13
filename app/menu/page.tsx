@@ -50,24 +50,29 @@ function MenuPageContent() {
     number | null
   >(null);
 
-  const { items: foodCategories, loading: categoryLoading, error: categoryError } = useSelector(
-    (state: RootState) => state.category,
-  ) as { items: FoodCategory[]; loading: boolean; error: string | null };
-
-  const activeFoodCategoryId: number | null =
-    selectedFoodCategoryId ?? foodCategories?.[0]?.id ?? null;
+  const {
+    items: foodCategories,
+    loading: categoryLoading,
+    error: categoryError,
+    activeCuisine: loadedCategoryCuisine,
+  } = useSelector((state: RootState) => state.category) as {
+    items: FoodCategory[];
+    loading: boolean;
+    error: string | null;
+    activeCuisine: string | null;
+  };
 
   const dispatch = useDispatch<AppDispatch>();
   const {
     items: menuItems,
     loading: menuLoading,
     error: menuError,
+    activeCuisine: loadedMenuCuisine,
   } = useSelector((state: RootState) => state.menu);
   const totalCartItems = useSelector(
     (state: RootState) => state.cart.totalCartItems,
   );
 
-  const activeTab = selectedTab ?? foodCategories?.[0]?.name ?? "";
   const showMexicanMenu =
     activeSection === "dine-in" && activeMenuCategory === "mexican";
   const showPanAsianMenu =
@@ -93,24 +98,41 @@ function MenuPageContent() {
   const showMexicanMiniOffer =
     offerClockReady && showMexicanMenu && isMexicanMiniOfferActive();
   const needsMenuApiData = Boolean(activeCuisine);
+  const menuReady =
+    Boolean(activeCuisine) && loadedMenuCuisine === activeCuisine && !menuLoading;
+  const categoryReady =
+    Boolean(activeCuisine) &&
+    loadedCategoryCuisine === activeCuisine &&
+    !categoryLoading;
+  const visibleMenuItems = menuReady ? menuItems : [];
+  const visibleFoodCategories = categoryReady ? foodCategories : [];
+  const activeFoodCategoryId: number | null =
+    selectedFoodCategoryId ?? visibleFoodCategories[0]?.id ?? null;
+  const activeTab = selectedTab ?? visibleFoodCategories[0]?.name ?? "";
 
   const filteredMenuItems = useMemo(() => {
-    if (!showMexicanMenu || activeFoodCategoryId == null) return [];
-    return menuItems.filter(
-      (m: menuItem) => m.categoryId === activeFoodCategoryId,
+    if (!showMexicanMenu) return [];
+    if (activeFoodCategoryId == null) return visibleMenuItems;
+
+    return visibleMenuItems.filter(
+      (item: menuItem) => Number(item.categoryId) === Number(activeFoodCategoryId),
     );
-  }, [menuItems, activeFoodCategoryId, showMexicanMenu]);
+  }, [visibleMenuItems, activeFoodCategoryId, showMexicanMenu]);
 
   const soupsCategory = useMemo(
-    () => foodCategories.find((category) => isSoupsCategoryName(category.name)) ?? null,
-    [foodCategories],
+    () =>
+      visibleFoodCategories.find((category) => isSoupsCategoryName(category.name)) ??
+      null,
+    [visibleFoodCategories],
   );
   const soupItems = useMemo(
     () =>
       soupsCategory
-        ? menuItems.filter((item: menuItem) => item.categoryId === soupsCategory.id)
+        ? visibleMenuItems.filter(
+            (item: menuItem) => Number(item.categoryId) === Number(soupsCategory.id),
+          )
         : [],
-    [menuItems, soupsCategory],
+    [visibleMenuItems, soupsCategory],
   );
 
   const handleTabChange = (item: FoodCategory) => {
@@ -130,13 +152,27 @@ function MenuPageContent() {
   useEffect(() => {
     if (!activeCuisine) return;
 
-    dispatch(fetchMenu({ cuisine: activeCuisine }));
-    dispatch(fetchCategory({ cuisine: activeCuisine }));
+    const menuRequest = dispatch(fetchMenu({ cuisine: activeCuisine }));
+    const categoryRequest = dispatch(fetchCategory({ cuisine: activeCuisine }));
+
+    const reloadRestoredPage = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+
+      dispatch(fetchMenu({ cuisine: activeCuisine }));
+      dispatch(fetchCategory({ cuisine: activeCuisine }));
+    };
+
+    window.addEventListener("pageshow", reloadRestoredPage);
+
+    return () => {
+      menuRequest.abort();
+      categoryRequest.abort();
+      window.removeEventListener("pageshow", reloadRestoredPage);
+    };
   }, [dispatch, activeCuisine]);
 
   const loadError = menuError ?? categoryError;
-  const isLoadingMenuData =
-    needsMenuApiData && (menuLoading || categoryLoading);
+  const isLoadingMenuData = needsMenuApiData && (!menuReady || !categoryReady);
 
   useEffect(() => {
     if (!showSoupsMenu || isLoadingMenuData || loadError) return;
@@ -239,7 +275,7 @@ function MenuPageContent() {
     if (showPanAsianMenu) {
       return (
         <PanAsianMenu
-          items={menuItems}
+          items={visibleMenuItems}
           onAddedToCart={() => setIsDrawerOpen(true)}
         />
       );
@@ -248,7 +284,7 @@ function MenuPageContent() {
     if (showAsianStartersGravyMenu) {
       return (
         <AsianStartersGravyMenu
-          items={menuItems}
+          items={visibleMenuItems}
           onAddedToCart={() => setIsDrawerOpen(true)}
         />
       );
@@ -257,7 +293,7 @@ function MenuPageContent() {
     if (showDessertsMenu) {
       return (
         <DessertsMenu
-          items={menuItems}
+          items={visibleMenuItems}
           onAddedToCart={() => setIsDrawerOpen(true)}
         />
       );
@@ -276,7 +312,7 @@ function MenuPageContent() {
     if (showFitarritoHouseMenu) {
       return (
         <FitarritoHouseMenu
-          items={menuItems}
+          items={visibleMenuItems}
           onAddedToCart={() => setIsDrawerOpen(true)}
         />
       );
@@ -287,7 +323,7 @@ function MenuPageContent() {
         <>
           <section className={styles.categorySection}>
             <div className={styles.tabsControl}>
-              {foodCategories?.map((item) => (
+              {visibleFoodCategories.map((item) => (
                 <button
                   key={item.id}
                   className={styles.tabControl}

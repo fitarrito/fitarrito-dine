@@ -18,14 +18,22 @@ function deliveryLocation(order: {
   delivery_city?: string | null;
   delivery_pincode?: string | null;
   delivery_landmark?: string | null;
+  delivery_latitude?: number | null;
+  delivery_longitude?: number | null;
 }) {
   if (order.delivery_address_type === "normal_address") {
+    const mapLink =
+      order.delivery_latitude != null && order.delivery_longitude != null
+        ? `https://maps.google.com/?q=${order.delivery_latitude},${order.delivery_longitude}`
+        : null;
+
     return [
       order.delivery_address,
       order.delivery_area,
       order.delivery_city,
       order.delivery_pincode,
       order.delivery_landmark,
+      mapLink,
     ]
       .map((value) => value?.trim())
       .filter(Boolean)
@@ -59,7 +67,7 @@ export async function POST(request: Request) {
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, area, delivery_address_type, delivery_location_name, delivery_address, delivery_area, delivery_city, delivery_pincode, delivery_landmark, delivery_instructions, subtotal, delivery_charge, total, payment_method, status, created_at, updated_at, preparation_time_minutes",
+        "id, customer_name, customer_phone, area, delivery_address_type, delivery_location_name, delivery_address, delivery_area, delivery_city, delivery_pincode, delivery_landmark, delivery_latitude, delivery_longitude, delivery_instructions, subtotal, delivery_charge, total, payment_method, status, created_at, updated_at, preparation_time_minutes",
       )
       .eq("id", orderId)
       .eq("session_id", sessionId)
