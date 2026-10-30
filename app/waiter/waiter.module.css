@@ -1,0 +1,74 @@
+.page {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 1.25rem 0 2rem;
+}
+
+.card {
+  width: 100%;
+  max-width: 28rem;
+  padding: 2rem 1.25rem 1.75rem;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #fee2e2;
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(127, 29, 29, 0.08);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.logo {
+  width: auto;
+  height: 3rem;
+}
+
+.wordmark {
+  width: auto;
+  height: 1.7rem;
+}
+
+.card h1 {
+  margin: 1.15rem 0 0;
+  color: #111827;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.subtitle {
+  margin: 0.45rem 0 0;
+  color: #6b7280;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.placeholder {
+  margin: 1.5rem 0 0;
+  padding: 1rem 0.9rem;
+  border-radius: 12px;
+  background: #fff5f5;
+  color: var(--customTheme, #fc1e1e);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 4rem 0 2rem;
+  }
+
+  .card {
+    padding: 2.5rem 2rem 2rem;
+  }
+
+  .card h1 {
+    font-size: 2rem;
+  }
+}
