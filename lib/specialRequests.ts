@@ -1,8 +1,12 @@
 export const SPECIAL_REQUESTS_MAX_LENGTH = 1000;
 
-export function readSpecialRequests(value: unknown) {
+export type SpecialRequestsResult =
+  | { specialRequests: string | null }
+  | { error: string };
+
+export function readSpecialRequests(value: unknown): SpecialRequestsResult {
   if (value == null || value === "") {
-    return { specialRequests: null as string | null };
+    return { specialRequests: null };
   }
 
   if (typeof value !== "string") {
