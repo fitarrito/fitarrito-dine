@@ -2,13 +2,15 @@ export type MenuCuisineSlug =
   | "mexican"
   | "pan-asian"
   | "fitarrito-house"
-  | "asian-starters-gravy";
+  | "asian-starters-gravy"
+  | "beverages";
 
 export const CUISINE_SLUG_TO_DB: Record<MenuCuisineSlug, string> = {
   mexican: "Mexican",
   "pan-asian": "Pan Asian",
   "fitarrito-house": "Fitarrito House",
   "asian-starters-gravy": "Asian Starters & Gravy",
+  beverages: "Beverages",
 };
 
 export function cuisineSlugFromNavCategory(
@@ -20,7 +22,8 @@ export function cuisineSlugFromNavCategory(
     categoryId === "mexican" ||
     categoryId === "pan-asian" ||
     categoryId === "fitarrito-house" ||
-    categoryId === "asian-starters-gravy"
+    categoryId === "asian-starters-gravy" ||
+    categoryId === "beverages"
   ) {
     return categoryId;
   }
@@ -52,6 +55,10 @@ export function normalizeCuisineQuery(value: string | null): string | null {
     normalized === "asian starters and gravy"
   ) {
     return CUISINE_SLUG_TO_DB["asian-starters-gravy"];
+  }
+
+  if (normalized === "beverages" || normalized === "beverage") {
+    return CUISINE_SLUG_TO_DB.beverages;
   }
 
   return null;

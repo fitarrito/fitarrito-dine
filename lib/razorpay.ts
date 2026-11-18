@@ -205,3 +205,16 @@ export function getRazorpayError(error: unknown) {
       "Razorpay request failed.",
   };
 }
+
+export function verifyRazorpayWebhookSignature(rawBody: string, signature: string) {
+  const secret = readEnv("RAZORPAY_WEBHOOK_SECRET");
+
+  if (!secret || !signature) return false;
+
+  const expectedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(rawBody)
+    .digest("hex");
+
+  return valuesMatch(expectedSignature, signature);
+}

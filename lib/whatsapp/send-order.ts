@@ -1,6 +1,11 @@
+import { formatDistanceKm } from "@lib/deliveryFee";
 import { formatRupees } from "@lib/razorpayFee";
 import { decodeDessertSelection } from "@lib/desserts";
 import { decodeSoupSelection } from "@lib/soups";
+import {
+  decodeSoupsBowlsSelection,
+  formatSoupsBowlsChoice,
+} from "@lib/soupsBowlsOrder";
 
 export type OrderWhatsAppItem = {
   item_name: string;
@@ -18,6 +23,7 @@ export type FormatOrderWhatsAppMessageInput = {
   items: OrderWhatsAppItem[];
   subtotal: number;
   deliveryCharge: number;
+  distanceKm?: number | null;
   total: number;
   paymentMethod: string;
   addressLine1: string;
@@ -26,6 +32,7 @@ export type FormatOrderWhatsAppMessageInput = {
   pincode: string;
   landmark?: string;
   deliveryInstructions?: string;
+  specialRequests?: string | null;
 };
 
 const DEFAULT_KITCHEN_PHONE = "919600908264";
@@ -49,11 +56,14 @@ export function formatOrderWhatsAppMessage(
   const itemLines = input.items
     .map((item) => {
       const lineTotal = item.unit_price * item.quantity;
+      const soupsBowls = decodeSoupsBowlsSelection(item.selected_protein);
       const details = [
-        decodeDessertSelection(item.selected_protein) ||
-        decodeSoupSelection(item.selected_protein)
-          ? null
-          : item.selected_protein,
+        soupsBowls
+          ? formatSoupsBowlsChoice(soupsBowls)
+          : decodeDessertSelection(item.selected_protein) ||
+              decodeSoupSelection(item.selected_protein)
+            ? null
+            : item.selected_protein,
         item.selected_size ? `Size: ${item.selected_size}` : null,
         item.selected_toppings ? `Toppings: ${item.selected_toppings}` : null,
       ]
@@ -93,6 +103,11 @@ export function formatOrderWhatsAppMessage(
       ? `\nPayment fee: ${formatRupees(processingFee)}`
       : "";
 
+  const allergyNote = input.specialRequests?.trim();
+  const allergyBlock = allergyNote
+    ? `\n\nFOOD ALLERGIES & SPECIAL REQUESTS:\n${allergyNote}`
+    : "";
+
   return `🍽️ NEW FITARRITO ORDER
 
 Order: #${input.orderId}
@@ -105,10 +120,10 @@ Items:
 ${itemLines}
 
 Subtotal: ${formatRupees(input.subtotal)}
-Delivery: ${formatRupees(input.deliveryCharge)}${processingFeeLine}
+${typeof input.distanceKm === "number" ? `Delivery distance: ${formatDistanceKm(input.distanceKm)}\n` : ""}Delivery: ${formatRupees(input.deliveryCharge)}${processingFeeLine}
 TOTAL: ${formatRupees(input.total)}
 
-Payment: ${paymentLabel}
+Payment: ${paymentLabel}${allergyBlock}
 
 📍 Delivery Address:
 ${addressParts}`;

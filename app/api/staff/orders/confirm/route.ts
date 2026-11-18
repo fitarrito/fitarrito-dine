@@ -21,18 +21,20 @@ type StaffOrderRow = {
   customer_name: string;
   customer_phone: string | null;
   area: string | null;
+  delivery_charge?: number | string | null;
   total: number | string;
   payment_method: string;
   status: string;
   created_at?: string | null;
   updated_at?: string | null;
   preparation_time_minutes?: number | null;
+  special_requests?: string | null;
 };
 
 const ORDER_COLUMNS =
-  "id, customer_name, customer_phone, area, total, payment_method, status, created_at, updated_at, preparation_time_minutes";
+  "id, customer_name, customer_phone, area, delivery_charge, total, payment_method, status, created_at, updated_at, preparation_time_minutes, special_requests";
 const ORDER_COLUMNS_WITHOUT_PREPARATION =
-  "id, customer_name, customer_phone, area, total, payment_method, status, created_at, updated_at";
+  "id, customer_name, customer_phone, area, delivery_charge, total, payment_method, status, created_at, updated_at, special_requests";
 
 function json(body: object, status = 200) {
   return NextResponse.json(body, {
@@ -90,11 +92,16 @@ function presentOrder(order: StaffOrderRow) {
     id: order.id,
     customerName: order.customer_name,
     deliveryLocation: order.area,
+    deliveryCharge:
+      order.delivery_charge == null || order.delivery_charge === ""
+        ? null
+        : Number(order.delivery_charge),
     total: Number(order.total),
     paymentMethod: order.payment_method,
     status: order.status,
     createdAt: order.created_at,
     updatedAt: order.updated_at,
+    specialRequests: order.special_requests?.trim() || null,
     ...notificationFor(order),
   };
 }
@@ -155,6 +162,26 @@ export async function POST(request: Request) {
       return json(
         {
           error: `Order #${staffOrder.id} cannot be confirmed because its status is "${staffOrder.status}".`,
+          orderId: staffOrder.id,
+          status: staffOrder.status,
+        },
+        409,
+      );
+    }
+
+    const { data: paymentRow } = await supabaseAdmin
+      .from("orders")
+      .select("order_source")
+      .eq("id", staffOrder.id)
+      .maybeSingle();
+
+    if (
+      paymentRow?.order_source === "awaiting_payment" ||
+      paymentRow?.order_source === "payment_failed"
+    ) {
+      return json(
+        {
+          error: `Order #${staffOrder.id} is not paid yet.`,
           orderId: staffOrder.id,
           status: staffOrder.status,
         },

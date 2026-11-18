@@ -38,6 +38,7 @@ export interface menuItem {
   category?: string;
   cuisine?: string;
   order_type?: string;
+  is_available?: boolean | null;
   proteinVariants?: ProteinVariant[];
   sizeVariants?: SizeVariant[];
   saladVariants?: SaladVariant[];
@@ -47,6 +48,7 @@ export interface menuItem {
   panAsianPrices?: import("@lib/panAsianOrder").PanAsianPriceOption[];
   panAsianIngredients?: import("@lib/panAsianOrder").PanAsianIngredient[];
   asianStartersGravyPrices?: import("@lib/asianStartersGravyOrder").AsianStartersGravyPriceOption[];
+  soupsBowlsPrices?: import("@lib/soupsBowlsOrder").SoupsBowlsPriceOption[];
 }
 
 export interface addOnsItem {

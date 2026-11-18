@@ -9,6 +9,7 @@ import { getCartSession } from "@lib/cartSession";
 import { useAppDispatch } from "@lib/hooks";
 import { resolveMenuItemImageUrl } from "@lib/menuImages";
 import { orderingActionsPaused, useOnlineOrdering } from "@lib/useOnlineOrdering";
+import { isDessertsCategoryName } from "@lib/desserts";
 import {
   encodePanAsianSelection,
   isPanAsianCategory,
@@ -18,10 +19,12 @@ import {
   type PanAsianCategory,
   type PanAsianIngredient,
 } from "@lib/panAsianOrder";
+import { isSoupsCategoryName } from "@lib/soups";
 import type { menuItem } from "@/types/types";
 import cardStyles from "./SoupsMenu.module.css";
 import proteinStyles from "./AsianStartersGravyMenu.module.css";
 import styles from "./PanAsianMenu.module.css";
+import VariantMenuCard from "./VariantMenuCard";
 
 const INGREDIENT_ICONS: Record<string, string> = {
   Mushroom: "/images/menuimages/proteinImages/MushroomIcon.svg",
@@ -64,11 +67,13 @@ function categoryIcon(category: PanAsianCategory) {
   return <FaLeaf aria-hidden />;
 }
 
-function PanAsianMenuCard({
+export function PanAsianMenuCard({
   item,
+  kicker = "Pan Asian",
   onAddedToCart,
 }: {
   item: menuItem;
+  kicker?: string;
   onAddedToCart?: () => void;
 }) {
   const dispatch = useAppDispatch();
@@ -149,14 +154,12 @@ function PanAsianMenuCard({
           className={cardStyles.cardImage}
           sizes="(min-width: 768px) 11rem, 100vw"
         />
-        <span className={`${cardStyles.stroke} ${cardStyles.strokeTop}`} aria-hidden="true" />
-        <span className={`${cardStyles.stroke} ${cardStyles.strokeBottom}`} aria-hidden="true" />
       </div>
 
       <div className={cardStyles.body}>
         <p className={cardStyles.kicker}>
           <SectionMark />
-          Pan Asian
+          {kicker}
         </p>
         <h3 className={cardStyles.title}>{item.title}</h3>
         {item.description ? <p className={cardStyles.description}>{item.description}</p> : null}
@@ -302,23 +305,71 @@ function IngredientChoice({
   );
 }
 
+type FoodCategory = {
+  id: number;
+  name: string;
+};
+
 type PanAsianMenuProps = {
   items: menuItem[];
+  categories?: FoodCategory[];
   onAddedToCart?: () => void;
 };
 
-export default function PanAsianMenu({ items, onAddedToCart }: PanAsianMenuProps) {
-  const dishes = useMemo(
-    () =>
-      sortPanAsianDishes(
-        items.filter(
-          (item) =>
-            (item.order_type ?? "on_demand") === "on_demand" &&
-            (item.panAsianPrices?.length ?? 0) > 0,
-        ),
-      ),
-    [items],
-  );
+export default function PanAsianMenu({
+  items,
+  categories = [],
+  onAddedToCart,
+}: PanAsianMenuProps) {
+  const dishes = useMemo(() => {
+    const categoryNameById = new Map(
+      categories.map((category) => [Number(category.id), category.name]),
+    );
+
+    return sortPanAsianDishes(
+      items.filter((item) => {
+        if ((item.order_type ?? "on_demand") !== "on_demand") return false;
+        if ((item.panAsianPrices?.length ?? 0) === 0) return false;
+
+        return !isSoupsCategoryName(categoryNameById.get(Number(item.categoryId)));
+      }),
+    );
+  }, [categories, items]);
+  const extraGroups = useMemo(() => {
+    const groups = new Map<string, { id: number; name: string; items: menuItem[] }>();
+
+    for (const item of items) {
+      if ((item.order_type ?? "on_demand") !== "on_demand") continue;
+      if ((item.panAsianPrices?.length ?? 0) > 0) continue;
+      if ((item.proteinVariants?.length ?? 0) === 0 && (item.sizeVariants?.length ?? 0) === 0) {
+        continue;
+      }
+
+      const category = categories.find(
+        (entry) => Number(entry.id) === Number(item.categoryId),
+      );
+      const name = category?.name ?? "";
+
+      if (isSoupsCategoryName(name) || isDessertsCategoryName(name)) continue;
+
+      const key = name || "Pan Asian";
+      const group = groups.get(key) ?? {
+        id: Number(category?.id ?? 0),
+        name: key,
+        items: [],
+      };
+
+      group.items.push(item);
+      groups.set(key, group);
+    }
+
+    return [...groups.values()]
+      .sort((left, right) => left.id - right.id)
+      .map((group) => ({
+        ...group,
+        items: group.items.slice().sort((left, right) => left.title.localeCompare(right.title)),
+      }));
+  }, [categories, items]);
 
   return (
     <section className={cardStyles.section}>
@@ -333,9 +384,26 @@ export default function PanAsianMenu({ items, onAddedToCart }: PanAsianMenuProps
             <PanAsianMenuCard key={item.id} item={item} onAddedToCart={onAddedToCart} />
           ))}
         </div>
-      ) : (
+      ) : null}
+      {extraGroups.map((group) => (
+        <div key={group.name}>
+          <h3 className={proteinStyles.groupTitle}>{group.name}</h3>
+          <div className={cardStyles.list}>
+            {group.items.map((item) => (
+              <VariantMenuCard
+                key={item.id}
+                item={item}
+                kicker={group.name}
+                mode="protein"
+                onAddedToCart={onAddedToCart}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+      {dishes.length === 0 && extraGroups.length === 0 ? (
         <p className={cardStyles.empty}>Pan Asian bowls are not available right now.</p>
-      )}
+      ) : null}
     </section>
   );
 }

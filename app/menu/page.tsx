@@ -17,11 +17,13 @@ import MenuCategoryNav, {
 } from "@/components/MenuCategoryNav";
 import OnDemandOrderingBanner from "@/components/OnDemandOrderingBanner";
 import AsianStartersGravyMenu from "@/components/AsianStartersGravyMenu";
+import BeveragesMenu from "@/components/BeveragesMenu";
 import DessertsMenu from "@/components/DessertsMenu";
 import PanAsianMenu from "@/components/PanAsianMenu";
 import SoupsMenu from "@/components/SoupsMenu";
 import FitarritoHouseMenu from "@/components/FitarritoHouseMenu";
 import { cuisineSlugFromNavCategory } from "@lib/menuCuisine";
+import { isDessertsCategoryName } from "@lib/desserts";
 import { isSoupsCategoryName } from "@lib/soups";
 import { isMexicanMiniOfferActive } from "@lib/mexicanMiniOffer";
 import MexicanMiniOfferBanner from "@/components/MexicanMiniOfferBanner";
@@ -83,6 +85,8 @@ function MenuPageContent() {
     activeSection === "dine-in" && activeMenuCategory === "desserts";
   const showSoupsMenu =
     activeSection === "dine-in" && activeMenuCategory === "soups";
+  const showBeveragesMenu =
+    activeSection === "dine-in" && activeMenuCategory === "beverages";
   const showFitarritoHouseMenu =
     activeSection === "dine-in" && activeMenuCategory === "fitarrito-house";
   const showComingSoon =
@@ -93,6 +97,7 @@ function MenuPageContent() {
       activeMenuCategory !== "asian-starters-gravy" &&
       activeMenuCategory !== "desserts" &&
       activeMenuCategory !== "soups" &&
+      activeMenuCategory !== "beverages" &&
       activeMenuCategory !== "fitarrito-house");
   const showOnDemandBanner = activeSection === "dine-in";
   const showMexicanMiniOffer =
@@ -104,7 +109,9 @@ function MenuPageContent() {
     Boolean(activeCuisine) &&
     loadedCategoryCuisine === activeCuisine &&
     !categoryLoading;
-  const visibleMenuItems = menuReady ? menuItems : [];
+  const visibleMenuItems = menuReady
+    ? menuItems.filter((item) => item.is_available !== false)
+    : [];
   const visibleFoodCategories = categoryReady ? foodCategories : [];
   const activeFoodCategoryId: number | null =
     selectedFoodCategoryId ?? visibleFoodCategories[0]?.id ?? null;
@@ -133,6 +140,21 @@ function MenuPageContent() {
           )
         : [],
     [visibleMenuItems, soupsCategory],
+  );
+  const dessertsCategory = useMemo(
+    () =>
+      visibleFoodCategories.find((category) => isDessertsCategoryName(category.name)) ??
+      null,
+    [visibleFoodCategories],
+  );
+  const dessertItems = useMemo(
+    () =>
+      dessertsCategory
+        ? visibleMenuItems.filter(
+            (item: menuItem) => Number(item.categoryId) === Number(dessertsCategory.id),
+          )
+        : [],
+    [visibleMenuItems, dessertsCategory],
   );
 
   const handleTabChange = (item: FoodCategory) => {
@@ -178,7 +200,7 @@ function MenuPageContent() {
     if (!showSoupsMenu || isLoadingMenuData || loadError) return;
 
     if (!soupsCategory) {
-      console.warn("Soups menu loaded without a Soups category.");
+      console.warn("Soups & Bowls menu loaded without a Soups & Bowls category.");
     }
   }, [showSoupsMenu, isLoadingMenuData, loadError, soupsCategory]);
 
@@ -276,6 +298,7 @@ function MenuPageContent() {
       return (
         <PanAsianMenu
           items={visibleMenuItems}
+          categories={visibleFoodCategories}
           onAddedToCart={() => setIsDrawerOpen(true)}
         />
       );
@@ -293,6 +316,15 @@ function MenuPageContent() {
     if (showDessertsMenu) {
       return (
         <DessertsMenu
+          items={dessertItems}
+          onAddedToCart={() => setIsDrawerOpen(true)}
+        />
+      );
+    }
+
+    if (showBeveragesMenu) {
+      return (
+        <BeveragesMenu
           items={visibleMenuItems}
           onAddedToCart={() => setIsDrawerOpen(true)}
         />
@@ -381,14 +413,21 @@ function MenuPageContent() {
                 showMexicanMenu
                   ? "Freshly made burritos, tacos, bowls & more!"
                   : showDessertsMenu
-                    ? "Sweet mango, dates, and water chestnut."
+                    ? "House desserts, made to order."
                     : showSoupsMenu
-                      ? "Freshly prepared soups."
-                      : undefined
+                      ? "Fresh soups and noodle bowls."
+                      : showBeveragesMenu
+                        ? "Hot and iced teas."
+                        : undefined
               }
             />
           ) : null}
-          <MenuCategoryNav activeCategory={activeMenuCategory} />
+          <MenuCategoryNav
+            activeCategory={activeMenuCategory}
+            labelOverrides={
+              soupsCategory ? { soups: soupsCategory.name } : undefined
+            }
+          />
         </div>
       ) : null}
 

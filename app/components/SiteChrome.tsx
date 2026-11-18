@@ -11,7 +11,8 @@ export default function SiteChrome({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isStaffPage = isStaffHost || pathname.startsWith("/staff");
+  const isStaffPage =
+    isStaffHost || pathname.startsWith("/staff") || pathname.startsWith("/waiter");
 
   return (
     <div className="flex min-h-dvh w-full max-w-full flex-col">

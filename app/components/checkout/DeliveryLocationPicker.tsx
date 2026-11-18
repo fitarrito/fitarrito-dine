@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { FaLocationArrow, FaMapMarkerAlt, FaSearch } from "react-icons/fa";
 import {
-  DELIVERY_ZONE,
   OUTSIDE_DELIVERY_ZONE_MESSAGE,
-  isInsideDeliveryZone,
+  isWithinDeliveryRadius,
+  type DeliveryCoordinate,
 } from "@lib/deliveryZone";
 import { googleMapsApiKey, loadGoogleMapsLibraries } from "@lib/googleMaps";
 import styles from "./DeliveryLocationPicker.module.css";
@@ -52,8 +52,10 @@ function addressFromComponents(
     componentValue(components, "administrative_area_level_2") ||
     "Chennai";
 
+  const firstLine = formattedAddress.split(",")[0]?.trim() || formattedAddress;
+
   return {
-    address: street || placeName || formattedAddress,
+    address: street || placeName || firstLine,
     area,
     city,
     pincode: componentValue(components, "postal_code"),
@@ -71,7 +73,15 @@ export default function DeliveryLocationPicker({
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+  const searchBoundsRef = useRef<google.maps.LatLngBounds | null>(null);
+  const searchAddressRef = useRef<(query: string) => void>(() => {});
+  const searchTimerRef = useRef<number | null>(null);
+  const searchSerialRef = useRef(0);
+  const zoneRef = useRef<DeliveryCoordinate | null>(null);
+  const lastValidRef = useRef<google.maps.LatLngLiteral | null>(null);
+  const acceptPositionRef = useRef<(latitude: number, longitude: number) => void>(() => {});
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [mapFailed, setMapFailed] = useState(false);
   const [zoneMessage, setZoneMessage] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [ready, setReady] = useState(false);
@@ -81,36 +91,72 @@ export default function DeliveryLocationPicker({
   }, [onChange]);
 
   useEffect(() => {
-    if (!googleMapsApiKey()) {
+    const authWindow = window as Window & { gm_authFailure?: () => void };
+    const previousAuthFailure = authWindow.gm_authFailure;
+    authWindow.gm_authFailure = () => {
+      setMapFailed(true);
       setLoadError(
-        "Location search needs a Google Maps API key. Enable the Maps JavaScript API, Places API, and Geocoding API, then set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY.",
+        "The map couldn't be loaded. Enter your house, street, area, and pincode below. You can continue without the pin.",
       );
-      return;
+      previousAuthFailure?.();
+    };
+
+    if (!googleMapsApiKey()) {
+      setMapFailed(true);
+      setLoadError(
+        "The map isn't available right now. Enter your house, street, area, and pincode below.",
+      );
+      return () => {
+        authWindow.gm_authFailure = previousAuthFailure;
+      };
     }
 
     let cancelled = false;
     const listeners: google.maps.MapsEventListener[] = [];
-    let autocomplete: google.maps.places.Autocomplete | null = null;
+
+    const insideRadius = (latitude: number, longitude: number) => {
+      const origin = zoneRef.current;
+
+      return origin != null && isWithinDeliveryRadius(origin, latitude, longitude);
+    };
+
+    const restoreMarker = () => {
+      const last = lastValidRef.current;
+
+      if (last && markerRef.current) markerRef.current.setPosition(last);
+    };
+
+    const rejectOutside = () => {
+      setZoneMessage(OUTSIDE_DELIVERY_ZONE_MESSAGE);
+      restoreMarker();
+    };
 
     const publish = (position: google.maps.LatLngLiteral, parts: AddressParts) => {
-      const inside = isInsideDeliveryZone(position.lat, position.lng);
-      const message = inside ? null : OUTSIDE_DELIVERY_ZONE_MESSAGE;
+      if (!insideRadius(position.lat, position.lng)) {
+        rejectOutside();
+        return;
+      }
 
-      setZoneMessage(message);
+      setZoneMessage(null);
       onChangeRef.current(
         {
           latitude: position.lat,
           longitude: position.lng,
           ...parts,
         },
-        message,
+        null,
       );
     };
 
     const placeMarker = (position: google.maps.LatLngLiteral) => {
       const map = mapRef.current;
 
-      if (!map) return;
+      if (!map || !insideRadius(position.lat, position.lng)) {
+        rejectOutside();
+        return false;
+      }
+
+      lastValidRef.current = position;
 
       if (!markerRef.current) {
         markerRef.current = new google.maps.Marker({
@@ -124,6 +170,11 @@ export default function DeliveryLocationPicker({
 
             if (!next) return;
 
+            if (!insideRadius(next.lat(), next.lng())) {
+              rejectOutside();
+              return;
+            }
+
             void geocode(next.lat(), next.lng());
           }),
         );
@@ -132,13 +183,18 @@ export default function DeliveryLocationPicker({
       }
 
       map.panTo(position);
-      if ((map.getZoom() ?? 0) < 15) map.setZoom(16);
+      return true;
     };
 
     const geocode = async (lat: number, lng: number) => {
       const geocoder = geocoderRef.current;
 
       if (!geocoder) return;
+
+      if (!insideRadius(lat, lng)) {
+        rejectOutside();
+        return;
+      }
 
       placeMarker({ lat, lng });
 
@@ -161,17 +217,39 @@ export default function DeliveryLocationPicker({
 
     const start = async () => {
       try {
-        const { maps, places, geocoding } = await loadGoogleMapsLibraries();
+        const zoneResponse = await fetch("/api/delivery/zone");
+        const zone = (await zoneResponse.json()) as {
+          latitude?: number;
+          longitude?: number;
+          radiusKm?: number;
+          error?: string;
+        };
+
+        if (cancelled) return;
+
+        if (
+          !zoneResponse.ok ||
+          typeof zone.latitude !== "number" ||
+          typeof zone.longitude !== "number"
+        ) {
+          setMapFailed(true);
+          setLoadError(
+            zone.error ||
+              "Delivery area isn't available right now. Enter your address below and we'll check it before payment.",
+          );
+          return;
+        }
+
+        zoneRef.current = { latitude: zone.latitude, longitude: zone.longitude };
+
+        const { maps, geocoding } = await loadGoogleMapsLibraries();
 
         if (cancelled || !mapNodeRef.current || !searchRef.current) return;
 
-        const center = {
-          lat: latitude ?? DELIVERY_ZONE.center.latitude,
-          lng: longitude ?? DELIVERY_ZONE.center.longitude,
-        };
+        const center = { lat: zone.latitude, lng: zone.longitude };
         const map = new maps.Map(mapNodeRef.current, {
           center,
-          zoom: latitude == null ? 12 : 16,
+          zoom: 11,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
@@ -182,13 +260,10 @@ export default function DeliveryLocationPicker({
         mapRef.current = map;
         geocoderRef.current = new geocoding.Geocoder();
 
-        new maps.Circle({
+        const circle = new maps.Circle({
           map,
-          center: {
-            lat: DELIVERY_ZONE.center.latitude,
-            lng: DELIVERY_ZONE.center.longitude,
-          },
-          radius: DELIVERY_ZONE.radiusKm * 1000,
+          center,
+          radius: (zone.radiusKm ?? 15) * 1000,
           strokeColor: "#fc1e1e",
           strokeOpacity: 0.7,
           strokeWeight: 1,
@@ -196,6 +271,9 @@ export default function DeliveryLocationPicker({
           fillOpacity: 0.06,
           clickable: false,
         });
+        const bounds = circle.getBounds();
+
+        if (bounds) map.fitBounds(bounds, 24);
 
         listeners.push(
           map.addListener("click", (event: google.maps.MapMouseEvent) => {
@@ -205,52 +283,74 @@ export default function DeliveryLocationPicker({
           }),
         );
 
-        if (latitude != null && longitude != null) {
+        if (latitude != null && longitude != null && insideRadius(latitude, longitude)) {
           placeMarker({ lat: latitude, lng: longitude });
+        } else if (latitude != null && longitude != null) {
+          setZoneMessage(OUTSIDE_DELIVERY_ZONE_MESSAGE);
         }
 
-        const bounds = new maps.Circle({
-          center: {
-            lat: DELIVERY_ZONE.center.latitude,
-            lng: DELIVERY_ZONE.center.longitude,
-          },
-          radius: DELIVERY_ZONE.radiusKm * 1000,
-        }).getBounds();
+        searchBoundsRef.current = bounds;
 
-        autocomplete = new places.Autocomplete(searchRef.current, {
-          componentRestrictions: { country: "in" },
-          fields: ["address_components", "formatted_address", "geometry", "name"],
-          bounds: bounds ?? undefined,
-        });
-        listeners.push(
-          autocomplete.addListener("place_changed", () => {
-            const place = autocomplete?.getPlace();
-            const location = place?.geometry?.location;
+        searchAddressRef.current = (query: string) => {
+          const trimmed = query.trim();
+          const geocoder = geocoderRef.current;
 
-            if (!place || !location) {
-              setZoneMessage("Choose one of the suggested addresses so we can place the pin.");
-              return;
-            }
+          if (!geocoder || trimmed.length < 3) return;
 
-            const position = { lat: location.lat(), lng: location.lng() };
+          const requestId = ++searchSerialRef.current;
 
-            placeMarker(position);
-            publish(
-              position,
-              addressFromComponents(
-                place.address_components,
-                place.formatted_address ?? "",
-                place.name,
-              ),
-            );
-          }),
-        );
+          void geocoder
+            .geocode({
+              address: trimmed,
+              componentRestrictions: { country: "IN" },
+              bounds: searchBoundsRef.current ?? undefined,
+            })
+            .then(({ results }) => {
+              if (cancelled || requestId !== searchSerialRef.current) return;
+              if (searchRef.current?.value.trim() !== trimmed) return;
+
+              const result = results[0];
+              const location = result?.geometry?.location;
+
+              if (!result || !location) {
+                setZoneMessage(
+                  "We couldn't find that place. Type the address below or tap the map.",
+                );
+                return;
+              }
+
+              const position = { lat: location.lat(), lng: location.lng() };
+
+              if (!insideRadius(position.lat, position.lng)) {
+                setZoneMessage(OUTSIDE_DELIVERY_ZONE_MESSAGE);
+                return;
+              }
+
+              placeMarker(position);
+              publish(
+                position,
+                addressFromComponents(result.address_components, result.formatted_address),
+              );
+            })
+            .catch(() => {
+              if (cancelled || requestId !== searchSerialRef.current) return;
+
+              setZoneMessage(
+                "We couldn't find that place. Type the address below or tap the map.",
+              );
+            });
+        };
+
+        acceptPositionRef.current = (nextLatitude, nextLongitude) => {
+          void geocode(nextLatitude, nextLongitude);
+        };
 
         if (!cancelled) setReady(true);
       } catch {
         if (!cancelled) {
+          setMapFailed(true);
           setLoadError(
-            "Google Maps could not be loaded. Enable the Maps JavaScript API, Places API, and Geocoding API for this key.",
+            "The map couldn't be loaded. Enter your house, street, area, and pincode below. You can continue without the pin.",
           );
         }
       }
@@ -258,8 +358,28 @@ export default function DeliveryLocationPicker({
 
     void start();
 
+    const mapNode = mapNodeRef.current;
+    const observer = new MutationObserver(() => {
+      const text = mapNode?.innerText ?? "";
+
+      if (
+        text.includes("didn't load Google Maps correctly") ||
+        text.includes("Oops! Something went wrong")
+      ) {
+        setMapFailed(true);
+        setLoadError(
+          "The map couldn't be loaded. Enter your house, street, area, and pincode below. You can continue without the pin.",
+        );
+      }
+    });
+
+    if (mapNode) observer.observe(mapNode, { childList: true, subtree: true, characterData: true });
+
     return () => {
       cancelled = true;
+      if (searchTimerRef.current) window.clearTimeout(searchTimerRef.current);
+      observer.disconnect();
+      authWindow.gm_authFailure = previousAuthFailure;
       listeners.forEach((listener) => listener.remove());
       markerRef.current?.setMap(null);
       markerRef.current = null;
@@ -284,66 +404,14 @@ export default function DeliveryLocationPicker({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-        const geocoder = geocoderRef.current;
+        const origin = zoneRef.current;
 
-        if (!geocoder || !mapRef.current) return;
-
-        if (!markerRef.current) {
-          markerRef.current = new google.maps.Marker({
-            map: mapRef.current,
-            position: next,
-            draggable: true,
-          });
-          markerRef.current.addListener("dragend", () => {
-            const dragged = markerRef.current?.getPosition();
-
-            if (!dragged || !geocoderRef.current) return;
-
-            void geocoderRef.current
-              .geocode({ location: { lat: dragged.lat(), lng: dragged.lng() } })
-              .then(({ results }) => {
-                const result = results[0];
-                const parts = result
-                  ? addressFromComponents(result.address_components, result.formatted_address)
-                  : { address: "", area: "", city: "Chennai", pincode: "" };
-                const inside = isInsideDeliveryZone(dragged.lat(), dragged.lng());
-
-                setZoneMessage(inside ? null : OUTSIDE_DELIVERY_ZONE_MESSAGE);
-                onChangeRef.current(
-                  {
-                    latitude: dragged.lat(),
-                    longitude: dragged.lng(),
-                    ...parts,
-                  },
-                  inside ? null : OUTSIDE_DELIVERY_ZONE_MESSAGE,
-                );
-              });
-          });
-        } else {
-          markerRef.current.setPosition(next);
+        if (!origin || !isWithinDeliveryRadius(origin, next.lat, next.lng)) {
+          setZoneMessage(OUTSIDE_DELIVERY_ZONE_MESSAGE);
+          return;
         }
 
-        mapRef.current.panTo(next);
-        mapRef.current.setZoom(16);
-
-        void geocoder.geocode({ location: next }).then(({ results }) => {
-          const result = results[0];
-          const parts = result
-            ? addressFromComponents(result.address_components, result.formatted_address)
-            : { address: "", area: "", city: "Chennai", pincode: "" };
-
-          if (searchRef.current && result?.formatted_address) {
-            searchRef.current.value = result.formatted_address;
-          }
-
-          const inside = isInsideDeliveryZone(next.lat, next.lng);
-
-          setZoneMessage(inside ? null : OUTSIDE_DELIVERY_ZONE_MESSAGE);
-          onChangeRef.current(
-            { latitude: next.lat, longitude: next.lng, ...parts },
-            inside ? null : OUTSIDE_DELIVERY_ZONE_MESSAGE,
-          );
-        });
+        acceptPositionRef.current(next.lat, next.lng);
       },
       () => {
         setLocating(false);
@@ -353,52 +421,87 @@ export default function DeliveryLocationPicker({
     );
   };
 
+  const mapUnavailable = mapFailed || Boolean(loadError);
+
+
   return (
     <div className={styles.panel}>
       <p className={styles.panelHeader}>
         <FaMapMarkerAlt aria-hidden />
         Find your delivery location
       </p>
-      <div className={styles.searchRow}>
-        <label className={styles.searchWrap}>
-          <FaSearch aria-hidden />
-          <input
-            ref={searchRef}
-            type="text"
-            placeholder="Search area, street, building..."
-            autoComplete="off"
-            aria-label="Search delivery location"
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.preventDefault();
-            }}
-          />
-        </label>
-        <button
-          type="button"
-          className={styles.locateButton}
-          onClick={useMyLocation}
-          disabled={!ready || locating}
-        >
-          <FaLocationArrow aria-hidden />
-          {locating ? "Finding..." : "Use my location"}
-        </button>
-      </div>
-      <div className={styles.mapWrap}>
-        <div ref={mapNodeRef} className={styles.map} />
-        <button
-          type="button"
-          className={styles.adjustButton}
-          disabled={!ready}
-          onClick={() => mapRef.current?.panTo(markerRef.current?.getPosition() ?? mapRef.current.getCenter()!)}
-        >
-          Adjust pin on map
-        </button>
-      </div>
-      {loadError || zoneMessage ? (
-        <p className={styles.message}>{loadError || zoneMessage}</p>
+      {mapUnavailable ? (
+        <div className={styles.fallback}>
+          <p>{loadError}</p>
+          <button
+            type="button"
+            className={styles.locateButton}
+            onClick={useMyLocation}
+            disabled={locating}
+          >
+            <FaLocationArrow aria-hidden />
+            {locating ? "Finding..." : "Use my location"}
+          </button>
+        </div>
       ) : (
+        <>
+          <div className={styles.searchRow}>
+            <label className={styles.searchWrap}>
+              <FaSearch aria-hidden />
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search area, street, building..."
+                autoComplete="off"
+                aria-label="Search delivery location"
+                onChange={(event) => {
+                  const value = event.target.value;
+
+                  if (searchTimerRef.current) window.clearTimeout(searchTimerRef.current);
+
+                  searchTimerRef.current = window.setTimeout(() => {
+                    searchAddressRef.current(value);
+                  }, 450);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+
+                  event.preventDefault();
+
+                  if (searchTimerRef.current) window.clearTimeout(searchTimerRef.current);
+
+                  searchAddressRef.current(event.currentTarget.value);
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className={styles.locateButton}
+              onClick={useMyLocation}
+              disabled={!ready || locating}
+            >
+              <FaLocationArrow aria-hidden />
+              {locating ? "Finding..." : "Use my location"}
+            </button>
+          </div>
+          <div className={styles.mapWrap}>
+            <div ref={mapNodeRef} className={styles.map} />
+            <button
+              type="button"
+              className={styles.adjustButton}
+              disabled={!ready}
+              onClick={() => mapRef.current?.panTo(markerRef.current?.getPosition() ?? mapRef.current.getCenter()!)}
+            >
+              Adjust pin on map
+            </button>
+          </div>
+        </>
+      )}
+      {zoneMessage ? (
+        <p className={styles.message}>{zoneMessage}</p>
+      ) : mapUnavailable ? null : (
         <p className={styles.hint}>
-          We deliver around {DELIVERY_ZONE.label}. Search, use your location, or tap the map to drop the pin.
+          We deliver within 15 km of the restaurant. Search, use your location, or tap the map to drop the pin. You can also type the address below.
         </p>
       )}
     </div>

@@ -14,6 +14,7 @@ export type PlaceRestaurantOrderInput = {
   latitude?: number | null;
   longitude?: number | null;
   deliveryInstructions?: string;
+  special_requests?: string;
   paymentMethod: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;

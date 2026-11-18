@@ -23,6 +23,9 @@ const STARTER_ORDER = [
   "Salt & Pepper",
   "Chilli Basil",
   "Shanghai Crispy",
+  "Sesame Teriyaki",
+  "Korean Rajoki",
+  "Honey Chilli Crispy",
 ];
 
 const GRAVY_ORDER = [
@@ -78,6 +81,21 @@ export function sortAsianStarterDishes<T extends { title: string }>(items: T[]) 
 
 export function sortAsianGravyDishes<T extends { title: string }>(items: T[]) {
   return sortByTitle(items, GRAVY_ORDER);
+}
+
+export function isAsianGravyDish(item: {
+  title: string;
+  asianStartersGravyPrices?: AsianStartersGravyPriceOption[];
+}) {
+  const prices = availableAsianStartersGravyPrices(
+    item.asianStartersGravyPrices,
+    item.title,
+  );
+
+  return (
+    prices.some((option) => isAsianStartersGravyProtein(option.category)) &&
+    !prices.some((option) => option.category === "Fixed")
+  );
 }
 
 export function availableAsianStartersGravyPrices(

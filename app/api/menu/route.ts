@@ -5,8 +5,10 @@ import {
   withTimeout,
 } from "@lib/getSupabaseServer";
 import { normalizeCuisineQuery } from "@lib/menuCuisine";
+import { isBlockedMenuTitle } from "@lib/menuVisibility";
 import { loadAsianStartersGravyCatalog } from "@lib/asianStartersGravyCatalog";
 import { loadPanAsianCatalog } from "@lib/panAsianCatalog";
+import { loadSoupsBowlsCatalog } from "@lib/soupsBowlsCatalog";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +34,7 @@ export async function GET(request: Request) {
   try {
     const supabase = getSupabaseServerClient();
 
-    let query = supabase.from("MenuItem").select("*");
+    let query = supabase.from("MenuItem").select("*").eq("is_available", true);
 
     if (cuisine) {
       query = query.eq("cuisine", cuisine);
@@ -42,16 +44,20 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    const items = data ?? [];
+    const items = (data ?? []).filter(
+      (item) => !isBlockedMenuTitle(String(item.title ?? "")),
+    );
 
     if (items.length === 0) {
       return NextResponse.json(items, noStore);
     }
 
     if (cuisine === "Pan Asian") {
-      const catalog = await loadPanAsianCatalog(
-        items.map((item) => String(item.title ?? "")),
-      );
+      const titles = items.map((item) => String(item.title ?? ""));
+      const [catalog, soupsBowlsPrices] = await Promise.all([
+        loadPanAsianCatalog(titles),
+        loadSoupsBowlsCatalog(titles),
+      ]);
 
       return NextResponse.json(
         items.map((item) => ({
@@ -61,6 +67,9 @@ export async function GET(request: Request) {
           ),
           panAsianIngredients: catalog.ingredients.filter(
             (ingredient) => ingredient.dish_title === item.title,
+          ),
+          soupsBowlsPrices: soupsBowlsPrices.filter(
+            (option) => option.dish_title === item.title,
           ),
         })),
         noStore,

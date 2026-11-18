@@ -10,11 +10,13 @@ import {
   type PreparationMinutes,
 } from "@lib/whatsapp/customerConfirmation";
 import styles from "./confirm.module.css";
+import SpecialRequestsNotice from "@/components/SpecialRequestsNotice";
 
 type StaffOrder = {
   id: string | number;
   customerName: string;
   deliveryLocation: string;
+  deliveryCharge?: number | null;
   total: number;
   paymentMethod: string;
   status: string;
@@ -24,6 +26,7 @@ type StaffOrder = {
   customerPhoneValid?: boolean;
   whatsappUrl?: string | null;
   whatsappError?: string | null;
+  specialRequests?: string | null;
 };
 
 type InspectResponse = {
@@ -256,6 +259,8 @@ function StaffOrderConfirmationContent() {
       <p className={styles.eyebrow}>Secure staff confirmation</p>
       <h1>Confirm Order #{order.id}</h1>
 
+      <SpecialRequestsNotice value={order.specialRequests} />
+
       <div className={styles.orderDetails}>
         <div>
           <span>Customer</span>
@@ -268,6 +273,16 @@ function StaffOrderConfirmationContent() {
         <div>
           <span>Payment Method</span>
           <strong>{paymentLabel(order.paymentMethod)}</strong>
+        </div>
+        <div>
+          <span>Delivery charge</span>
+          <strong>
+            {order.deliveryCharge == null
+              ? "—"
+              : order.deliveryCharge === 0
+                ? "Free"
+                : formatRupees(order.deliveryCharge)}
+          </strong>
         </div>
         <div>
           <span>Total</span>

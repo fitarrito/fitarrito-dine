@@ -207,6 +207,14 @@
   color: #6b7280;
 }
 
+.deliveryNote {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #047857;
+}
+
 .deliveryLabel {
   display: inline-flex;
   align-items: center;

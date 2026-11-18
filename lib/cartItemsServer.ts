@@ -1,4 +1,5 @@
 import type { menuItem } from "@/types/types";
+import { resolveMenuItemImageUrl } from "@lib/menuImages";
 import { calculateMenuItemPricing } from "@lib/menuPricing";
 
 export type CartItemRecord = {
@@ -23,6 +24,7 @@ export type EnrichedCartItem = CartItemRecord & {
   price: number;
   base_price: number;
   protein_price: number;
+  is_available?: boolean;
 };
 
 export function enrichCartItem(
@@ -51,7 +53,10 @@ export function enrichCartItem(
   return {
     ...row,
     title: menuItemRow.title,
-    image_url: menuItemRow.imageUrl || row.image_url || "/fallback-image.jpg",
+    image_url: resolveMenuItemImageUrl({
+      title: menuItemRow.title,
+      imageUrl: menuItemRow.imageUrl || row.image_url || undefined,
+    }),
     ...pricing,
   };
 }

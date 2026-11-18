@@ -15,6 +15,7 @@ import { getCartSession } from "@lib/cartSession";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
 import { calculateOrderTotals, GST_LABEL } from "@lib/orderTotals";
 import { formatRupees } from "@lib/razorpayFee";
+import { unavailableCartMessage } from "@lib/menuVisibility";
 import { useOnlineOrdering } from "@lib/useOnlineOrdering";
 import OnlineOrderingClosedNotice from "./OnlineOrderingClosedNotice";
 import Image from "next/image";
@@ -36,6 +37,9 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
   const dispatch = useAppDispatch();
   const cartSession = getCartSession();
   const itemCount = cartItems.reduce((sum, item) => sum + Number(item.quantity), 0);
+  const unavailableItems = cartItems.filter((item) => item.is_available === false);
+  const unavailableMessage =
+    unavailableItems.length > 0 ? unavailableCartMessage(unavailableItems) : null;
   const totals = calculateOrderTotals(totalAmt);
   const ordering = useOnlineOrdering();
   const orderingClosed = ordering.enabled === false;
@@ -239,13 +243,16 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
             </div>
 
             {orderingClosed ? <OnlineOrderingClosedNotice /> : null}
+            {unavailableMessage ? (
+              <p className={styles.unavailable}>{unavailableMessage}</p>
+            ) : null}
             <Button
               variant="primary"
               fullWidth
               className={styles.continueButton}
-              disabled={orderingClosed}
+              disabled={orderingClosed || Boolean(unavailableMessage)}
               onClick={() => {
-                if (orderingClosed) return;
+                if (orderingClosed || unavailableMessage) return;
                 setIsOpen(false);
                 router.push("/checkout");
               }}

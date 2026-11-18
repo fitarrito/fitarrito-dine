@@ -14,8 +14,8 @@ export type DineInCategory = {
 export const DINE_IN_CATEGORIES: DineInCategory[] = [
   {
     id: "soups",
-    label: "Soups",
-    imageUrl: "/images/soups-icon.png",
+    label: "Soups & Bowls",
+    imageUrl: "/images/soups-bowls-icon.svg",
   },
   {
     id: "mexican",
@@ -29,13 +29,18 @@ export const DINE_IN_CATEGORIES: DineInCategory[] = [
   },
   {
     id: "asian-starters-gravy",
-    label: "Asian Starters & Gravy",
+    label: "Asian Starters",
     imageUrl: "/images/asian-starters-platter.png",
   },
   {
     id: "desserts",
     label: "Desserts",
     imageUrl: "/images/desserts-icon.png",
+  },
+  {
+    id: "beverages",
+    label: "Beverages",
+    imageUrl: "/images/beverages-nav-icon.png",
   },
   {
     id: "fitarrito-house",
@@ -56,10 +61,12 @@ export const MENU_CATEGORIES = DINE_IN_CATEGORIES;
 
 type MenuCategoryNavProps = {
   activeCategory?: string;
+  labelOverrides?: Partial<Record<string, string>>;
 };
 
 export default function MenuCategoryNav({
   activeCategory = DEFAULT_MENU_CATEGORY,
+  labelOverrides,
 }: MenuCategoryNavProps) {
   return (
     <nav className={styles.nav} aria-label="Dine-in categories">
@@ -67,6 +74,7 @@ export default function MenuCategoryNav({
         {VISIBLE_DINE_IN_CATEGORIES.map((category) => {
           const active = activeCategory === category.id;
           const wideIcon = category.id !== "fitarrito-house";
+          const label = labelOverrides?.[category.id] || category.label;
 
           return (
             <Link
@@ -88,7 +96,7 @@ export default function MenuCategoryNav({
                   />
                 </span>
               ) : null}
-              <span className={styles.label}>{category.label}</span>
+              <span className={styles.label}>{label}</span>
             </Link>
           );
         })}

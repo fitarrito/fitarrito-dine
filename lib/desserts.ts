@@ -1,21 +1,11 @@
-export const DESSERT_ORDER = [
-  "Mango Sticky Rice",
-  "Wanton Dates",
-  "Water Chestnut",
-] as const;
+import type { SizeVariant } from "@/types/types";
 
-export type DessertTitle = (typeof DESSERT_ORDER)[number];
-
-export const DESSERT_PRICES: Record<DessertTitle, number> = {
-  "Mango Sticky Rice": 239,
-  "Wanton Dates": 239,
-  "Water Chestnut": 349,
-};
+const DESSERT_ORDER = ["Mango Sticky Rice", "Wanton Dates", "Water Chestnut"];
 
 const DESSERT_SELECTION = "Desserts: Fixed";
 
-export function isDessertTitle(title?: string | null): title is DessertTitle {
-  return DESSERT_ORDER.includes(title as DessertTitle);
+export function isDessertsCategoryName(name?: string | null) {
+  return name?.trim().toLowerCase() === "desserts";
 }
 
 export function encodeDessertSelection() {
@@ -28,26 +18,59 @@ export function decodeDessertSelection(value?: string | null) {
 
 export function sortDessertDishes<T extends { title: string }>(items: T[]) {
   return items.slice().sort((left, right) => {
-    const leftIndex = DESSERT_ORDER.indexOf(left.title as DessertTitle);
-    const rightIndex = DESSERT_ORDER.indexOf(right.title as DessertTitle);
+    const leftIndex = DESSERT_ORDER.indexOf(left.title);
+    const rightIndex = DESSERT_ORDER.indexOf(right.title);
+    const leftOrder = leftIndex === -1 ? DESSERT_ORDER.length : leftIndex;
+    const rightOrder = rightIndex === -1 ? DESSERT_ORDER.length : rightIndex;
 
-    return (
-      (leftIndex === -1 ? DESSERT_ORDER.length : leftIndex) -
-      (rightIndex === -1 ? DESSERT_ORDER.length : rightIndex)
-    );
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+
+    return left.title.localeCompare(right.title);
   });
 }
 
-export function quoteDessertSelection(title: string, selection?: string | null) {
-  if (!isDessertTitle(title)) {
-    return { error: "This dessert is not on the menu." };
+function positiveAmount(value: unknown) {
+  const amount = Math.round(Number(value));
+
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
+export function quoteDessertSelection(input: {
+  price: unknown;
+  selection?: string | null;
+  sizeVariants?: SizeVariant[] | null;
+  selectedSize?: string | null;
+}) {
+  if (!decodeDessertSelection(input.selection)) {
+    return { error: "This dessert has a fixed price." };
   }
 
-  if (!decodeDessertSelection(selection)) {
-    return { error: `${title} has a fixed price.` };
+  const sizes = input.sizeVariants ?? [];
+
+  if (sizes.length > 0) {
+    const size = sizes.find(
+      (option) => option.name.toLowerCase() === (input.selectedSize ?? "").trim().toLowerCase(),
+    );
+
+    if (!size) return { error: "Please select an option." };
+
+    const price = positiveAmount(size.price);
+
+    if (price == null) return { error: "This option is not available." };
+
+    return {
+      base_price: price,
+      protein_price: 0,
+      price,
+      selection: DESSERT_SELECTION,
+    };
   }
 
-  const price = DESSERT_PRICES[title];
+  const price = positiveAmount(input.price);
+
+  if (price == null) {
+    return { error: "This dessert is not available at the menu price." };
+  }
 
   return {
     base_price: price,

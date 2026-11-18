@@ -13,12 +13,13 @@ import {
   ASIAN_STARTERS_GRAVY_PROTEINS,
   availableAsianStartersGravyPrices,
   encodeAsianStartersGravySelection,
+  isAsianGravyDish,
   isAsianStartersGravyProtein,
-  sortAsianGravyDishes,
   sortAsianStarterDishes,
   type AsianStartersGravyProtein,
 } from "@lib/asianStartersGravyOrder";
 import type { menuItem } from "@/types/types";
+import VariantMenuCard from "./VariantMenuCard";
 import styles from "./SoupsMenu.module.css";
 import localStyles from "./AsianStartersGravyMenu.module.css";
 
@@ -144,8 +145,6 @@ function AsianStartersGravyCard({
             sizes="(min-width: 768px) 11rem, 100vw"
           />
         ) : null}
-        <span className={`${styles.stroke} ${styles.strokeTop}`} aria-hidden="true" />
-        <span className={`${styles.stroke} ${styles.strokeBottom}`} aria-hidden="true" />
       </div>
 
       <div className={styles.body}>
@@ -239,77 +238,68 @@ export default function AsianStartersGravyMenu({
     () => items.filter((item) => (item.order_type ?? "on_demand") === "on_demand"),
     [items],
   );
-  const starters = useMemo(
-    () =>
-      sortAsianStarterDishes(
-        onDemandItems.filter((item) =>
-          availableAsianStartersGravyPrices(item.asianStartersGravyPrices, item.title).some(
-            (option) => option.category === "Fixed",
-          ),
-        ),
-      ),
-    [onDemandItems],
-  );
-  const gravies = useMemo(
-    () =>
-      sortAsianGravyDishes(
-        onDemandItems.filter((item) => {
-          const prices = availableAsianStartersGravyPrices(
-            item.asianStartersGravyPrices,
-            item.title,
-          );
-
-          return (
-            prices.some((option) => isAsianStartersGravyProtein(option.category)) &&
-            !prices.some((option) => option.category === "Fixed")
-          );
-        }),
-      ),
+  const visibleItems = useMemo(
+    () => sortAsianStarterDishes(onDemandItems.filter((item) => !isAsianGravyDish(item))),
     [onDemandItems],
   );
 
   return (
     <section className={styles.section}>
       <header className={styles.heading}>
-        <h2>Asian Starters & Gravy</h2>
-        <p>Crisp starters and gravies from across Asia.</p>
+        <h2>Asian Starters</h2>
+        <p>Crisp starters from across Asia.</p>
       </header>
 
-      {starters.length > 0 ? (
-        <>
-          <h3 className={localStyles.groupTitle}>Asian Starters</h3>
-          <div className={styles.list}>
-            {starters.map((item) => (
-              <AsianStartersGravyCard
+      {visibleItems.length > 0 ? (
+        <div className={styles.list}>
+          {visibleItems.map((item) => {
+            const proteins = (item.proteinVariants ?? []).filter(
+              (protein) => protein.name.trim().toLowerCase() !== "mutton",
+            );
+            const fixedPrice = availableAsianStartersGravyPrices(
+              item.asianStartersGravyPrices,
+              item.title,
+            ).some((option) => option.category === "Fixed");
+
+            if (proteins.length > 0) {
+              return (
+                <VariantMenuCard
+                  key={item.id}
+                  item={item}
+                  kicker="Asian Starters"
+                  icon={<SectionMark />}
+                  mode="protein"
+                  onAddedToCart={onAddedToCart}
+                />
+              );
+            }
+
+            if (fixedPrice) {
+              return (
+                <AsianStartersGravyCard
+                  key={item.id}
+                  item={item}
+                  kind="starter"
+                  onAddedToCart={onAddedToCart}
+                />
+              );
+            }
+
+            return (
+              <VariantMenuCard
                 key={item.id}
                 item={item}
-                kind="starter"
+                kicker="Asian Starters"
+                icon={<SectionMark />}
+                mode="protein"
                 onAddedToCart={onAddedToCart}
               />
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      {gravies.length > 0 ? (
-        <>
-          <h3 className={localStyles.groupTitle}>Gravy</h3>
-          <div className={styles.list}>
-            {gravies.map((item) => (
-              <AsianStartersGravyCard
-                key={item.id}
-                item={item}
-                kind="gravy"
-                onAddedToCart={onAddedToCart}
-              />
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      {starters.length === 0 && gravies.length === 0 ? (
-        <p className={styles.empty}>Asian starters and gravies are not available right now.</p>
-      ) : null}
+            );
+          })}
+        </div>
+      ) : (
+        <p className={styles.empty}>Asian starters are not available right now.</p>
+      )}
     </section>
   );
 }

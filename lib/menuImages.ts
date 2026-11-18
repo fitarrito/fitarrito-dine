@@ -1,5 +1,3 @@
-import type { menuItem } from "@/types/types";
-
 const PAN_ASIAN_IMAGE_FALLBACKS: Record<string, string> = {
   ramen: "/images/menuimages/ramen-bowl.png",
   "japanese ramen": "/images/menuimages/ramen-bowl.png",
@@ -11,9 +9,21 @@ const PAN_ASIAN_IMAGE_FALLBACKS: Record<string, string> = {
   "thai green curry": "/images/menuimages/thai-green-curry.png",
   "vietnamese rice paper roll": "/images/menuimages/vietnamese-rice-paper-roll.jpg",
   "salt & pepper": "/images/menuimages/salt-and-pepper.jpg",
+  "sesame teriyaki": "/images/menuimages/sesame-teriyaki.jpg",
+  "korean rajoki": "/images/menuimages/korean-rajoki.jpg",
+  "honey chilli crispy": "/images/menuimages/honey-chilli-crispy.jpg",
   "chilli basil": "/images/menuimages/chilli-basil.jpg",
   "shanghai crispy": "/images/menuimages/shanghai-crispy.jpg",
   "mongolian gravy": "/images/menuimages/mongolian-gravy.jpg",
+  "mongolian curry": "/images/menuimages/mongolian-curry.jpg",
+  "thai red curry rice": "/images/menuimages/thai-red-curry-rice.jpg",
+  "thai green curry rice": "/images/menuimages/thai-green-curry-rice.jpg",
+  "sichuan noodles / rice": "/images/menuimages/sichuan-noodles-rice.jpg",
+  "wok toss noodles / rice": "/images/menuimages/wok-toss-noodles-rice.jpg",
+  "soba noodles": "/images/menuimages/soba-noodles.jpg",
+  "pad thai": "/images/menuimages/pad-thai.jpg",
+  "teriyaki rice": "/images/menuimages/teriyaki-rice.jpg",
+  "thai basil rice": "/images/menuimages/thai-basil-rice.jpg",
   "stir fry gravy": "/images/menuimages/stir-fry-gravy.jpg",
   "thai red curry": "/images/menuimages/thai-red-curry.jpg",
   "mango sticky rice": "/images/menuimages/mango-sticky-rice.jpg",
@@ -23,9 +33,16 @@ const PAN_ASIAN_IMAGE_FALLBACKS: Record<string, string> = {
   "talumein soup": "/images/menuimages/talumein-soup.jpg",
   "fitarrito special soup": "/images/menuimages/fitarrito-special-soup.jpg",
   "tom yum soup": "/images/menuimages/tom-yum-soup.jpg",
+  "miso soup": "/images/menuimages/miso-soup.jpg",
+  tostadas: "/images/menuimages/tostadas.jpg",
+  "peach iced tea": "/images/menuimages/peach-iced-tea.jpg",
+  taho: "/images/menuimages/taho.jpg",
 };
 
-export function resolveMenuItemImageUrl(item: Pick<menuItem, "title" | "imageUrl">) {
+export function resolveMenuItemImageUrl(item: {
+  title: string;
+  imageUrl?: string | null;
+}) {
   if (item.imageUrl) {
     return item.imageUrl;
   }

@@ -29,11 +29,10 @@ export async function loadGoogleMapsLibraries() {
     throw new Error("Google Maps API key is missing.");
   }
 
-  const [maps, places, geocoding] = await Promise.all([
+  const [maps, geocoding] = await Promise.all([
     importLibrary("maps"),
-    importLibrary("places"),
     importLibrary("geocoding"),
   ]);
 
-  return { maps, places, geocoding };
+  return { maps, geocoding };
 }

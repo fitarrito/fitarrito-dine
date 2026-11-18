@@ -13,6 +13,7 @@ import {
   type PreparationMinutes,
 } from "@lib/whatsapp/customerConfirmation";
 import OrderingControl from "./OrderingControl";
+import SpecialRequestsNotice from "@/components/SpecialRequestsNotice";
 import styles from "./dashboard.module.css";
 
 type OrderItem = {
@@ -27,6 +28,8 @@ type StaffOrder = {
   customerName: string;
   customerPhone: string;
   deliveryLocation: string;
+  deliveryCharge?: number | null;
+  deliveryDistanceKm?: number | null;
   total: number;
   paymentMethod: string;
   paymentStatus: string;
@@ -34,6 +37,7 @@ type StaffOrder = {
   createdAt?: string | null;
   updatedAt?: string | null;
   preparationLabel?: string | null;
+  specialRequests?: string | null;
   items: OrderItem[];
 };
 
@@ -759,6 +763,8 @@ export default function StaffDashboardPage() {
                   </span>
                 </header>
 
+                <SpecialRequestsNotice value={order.specialRequests} />
+
                 <div className={styles.details}>
                   <div>
                     <span>Phone</span>
@@ -774,6 +780,26 @@ export default function StaffDashboardPage() {
                       {paymentLabel(order.paymentMethod)} · {order.paymentStatus}
                     </strong>
                   </div>
+                  <div>
+                    <span>Delivery charge</span>
+                    <strong>
+                      {order.deliveryCharge == null
+                        ? "—"
+                        : order.deliveryCharge === 0
+                          ? "Free"
+                          : formatRupees(order.deliveryCharge)}
+                    </strong>
+                  </div>
+                  {order.deliveryDistanceKm != null ? (
+                    <div>
+                      <span>Delivery distance</span>
+                      <strong>
+                        {Number.isInteger(order.deliveryDistanceKm)
+                          ? `${order.deliveryDistanceKm} km`
+                          : `${order.deliveryDistanceKm.toFixed(1)} km`}
+                      </strong>
+                    </div>
+                  ) : null}
                   <div>
                     <span>Total</span>
                     <strong className={styles.total}>{formatRupees(order.total)}</strong>

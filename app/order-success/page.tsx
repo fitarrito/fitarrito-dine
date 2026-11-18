@@ -15,8 +15,10 @@ import {
 } from "react-icons/fa";
 import { fetchJson } from "@lib/apiFetch";
 import { getCartSession } from "@lib/cartSession";
+import { formatDistanceKm } from "@lib/deliveryFee";
 import { formatRupees } from "@lib/razorpayFee";
 import { getWhatsAppKitchenPhone } from "@lib/whatsapp/send-order";
+import SpecialRequestsNotice from "@/components/SpecialRequestsNotice";
 import styles from "./order-success.module.css";
 
 type OrderItem = {
@@ -36,12 +38,14 @@ type OrderDetails = {
     deliveryLocation: string;
     subtotal: number;
     deliveryCharge: number;
+    deliveryDistanceKm?: number | null;
     total: number;
     paymentMethod: string;
     status: string;
     createdAt?: string | null;
     updatedAt?: string | null;
     preparationLabel?: string | null;
+    specialRequests?: string | null;
   };
   items: OrderItem[];
 };
@@ -360,6 +364,8 @@ function OrderTrackingContent() {
           </div>
         </section>
 
+        <SpecialRequestsNotice value={order.specialRequests} />
+
         <section className={styles.panel}>
           <h2>Items in this order</h2>
           <div className={styles.items}>
@@ -378,6 +384,35 @@ function OrderTrackingContent() {
                 <strong>{formatRupees(item.unitPrice * item.quantity)}</strong>
               </div>
             ))}
+          </div>
+          <div className={styles.bill}>
+            <div>
+              <span>Food subtotal</span>
+              <strong>{formatRupees(order.subtotal)}</strong>
+            </div>
+            {order.deliveryDistanceKm != null ? (
+              <div>
+                <span>Delivery distance</span>
+                <strong>{formatDistanceKm(order.deliveryDistanceKm)}</strong>
+              </div>
+            ) : null}
+            <div>
+              <span>Delivery charge</span>
+              <strong>
+                {order.deliveryCharge === 0 ? "₹0" : formatRupees(order.deliveryCharge)}
+              </strong>
+            </div>
+            <div>
+              <span>Total payable</span>
+              <strong>{formatRupees(order.total)}</strong>
+            </div>
+            {order.deliveryDistanceKm != null ? (
+              <p className={styles.billNote}>
+                {order.deliveryCharge === 0
+                  ? "Congratulations! You get FREE delivery."
+                  : "Delivery charge calculated based on distance."}
+              </p>
+            ) : null}
           </div>
         </section>
       </div>

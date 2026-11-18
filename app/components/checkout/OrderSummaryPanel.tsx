@@ -15,6 +15,7 @@ import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import { removeCartItem } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
+import { formatDistanceKm } from "@lib/deliveryFee";
 import { calculateOrderTotals, GST_LABEL } from "@lib/orderTotals";
 import { formatRupees } from "@lib/razorpayFee";
 import {
@@ -31,6 +32,8 @@ type OrderSummaryPanelProps = {
   submitLabel?: string;
   variant?: "delivery" | "payment";
   buttonHint?: string | null;
+  deliveryCharge?: number | null;
+  distanceKm?: number | null;
 };
 
 export default function OrderSummaryPanel({
@@ -40,6 +43,8 @@ export default function OrderSummaryPanel({
   submitLabel,
   variant = "delivery",
   buttonHint = null,
+  deliveryCharge = null,
+  distanceKm = null,
 }: OrderSummaryPanelProps) {
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
@@ -47,9 +52,8 @@ export default function OrderSummaryPanel({
   const ordering = useOnlineOrdering();
   const orderingClosed = ordering.enabled === false;
   const isPayment = variant === "payment";
-  const totals = calculateOrderTotals(subtotal);
+  const totals = calculateOrderTotals(subtotal, deliveryCharge ?? 0);
   const totalAmount = totals.total;
-  const itemCount = cartItems.reduce((sum, item) => sum + Number(item.quantity), 0);
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const defaultLabel = isPayment
@@ -140,9 +144,30 @@ export default function OrderSummaryPanel({
 
       <div className={styles.totals}>
         <div className={styles.totalRow}>
-          <span>{isPayment ? `Subtotal (${itemCount} items)` : "Subtotal"}</span>
+          <span>Food subtotal</span>
           <span>{formatRupees(subtotal)}</span>
         </div>
+        <div className={styles.totalRow}>
+          <span>Delivery distance</span>
+          <span>{distanceKm == null ? "—" : formatDistanceKm(distanceKm)}</span>
+        </div>
+        <div className={styles.totalRow}>
+          <span>Delivery charge</span>
+          <span>
+            {deliveryCharge == null
+              ? "—"
+              : deliveryCharge === 0
+                ? "₹0"
+                : formatRupees(deliveryCharge)}
+          </span>
+        </div>
+        {deliveryCharge != null && distanceKm != null ? (
+          <p className={styles.deliveryNote}>
+            {deliveryCharge === 0
+              ? "Congratulations! You get FREE delivery."
+              : "Delivery charge calculated based on distance."}
+          </p>
+        ) : null}
         <div className={styles.totalRow}>
           <span>{GST_LABEL}</span>
           <span>{formatRupees(totals.gst)}</span>
@@ -159,7 +184,7 @@ export default function OrderSummaryPanel({
       </div>
 
       <div className={styles.totalAmountBox}>
-        <span>Total Amount</span>
+        <span>Total payable</span>
         <strong>{formatRupees(totalAmount)}</strong>
       </div>
 

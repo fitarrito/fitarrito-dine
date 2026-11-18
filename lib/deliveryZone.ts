@@ -3,18 +3,13 @@ export type DeliveryCoordinate = {
   longitude: number;
 };
 
-// Porur covers the listed campuses, including Vadapalani, within this radius.
-export const DELIVERY_ZONE = {
-  label: "Porur, Ramapuram, and Vadapalani",
-  center: { latitude: 13.0381, longitude: 80.1565 },
-  radiusKm: 9,
-};
+export const DELIVERY_RADIUS_KM = 15;
 
 export const OUTSIDE_DELIVERY_ZONE_MESSAGE =
-  "This address is outside our delivery area. We currently deliver around Porur, Ramapuram, and Vadapalani. Move the pin closer, or choose a listed location.";
+  "This location is outside our delivery area. We deliver within 15 km of the restaurant. Choose a closer address.";
 
 export const LOCATION_REQUIRED_MESSAGE =
-  "Search for your delivery location, or drop the pin on the map.";
+  "Enter your house, street, area, city, and pincode.";
 
 function toRadians(degrees: number) {
   return (degrees * Math.PI) / 180;
@@ -48,10 +43,14 @@ export function parseDeliveryCoordinate(latitude: unknown, longitude: unknown) {
   return { latitude: parsedLatitude, longitude: parsedLongitude };
 }
 
-export function isInsideDeliveryZone(latitude: number, longitude: number) {
+export function isWithinDeliveryRadius(
+  origin: DeliveryCoordinate,
+  latitude: number,
+  longitude: number,
+) {
   const coordinate = parseDeliveryCoordinate(latitude, longitude);
 
   if (!coordinate) return false;
 
-  return deliveryDistanceKm(DELIVERY_ZONE.center, coordinate) <= DELIVERY_ZONE.radiusKm;
+  return deliveryDistanceKm(origin, coordinate) <= DELIVERY_RADIUS_KM;
 }

@@ -31,8 +31,8 @@ import {
   loadVerifiedPayment,
   saveVerifiedPayment,
 } from "@lib/verifiedPayment";
+import { unavailableCartMessage } from "@lib/menuVisibility";
 import { normalizeIndianPhone } from "@lib/normalizePhone";
-import { placeRestaurantOrder } from "@lib/placeRestaurantOrder";
 import {
   isRazorpayTestKey,
   openRazorpayCheckout,
@@ -75,15 +75,45 @@ export default function CheckoutPaymentPage() {
   const handledReturnRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     dispatch(fetchCart(getCartSession()));
-    const saved = loadCheckoutDelivery();
 
-    if (!saved || !isCheckoutDeliveryComplete(saved)) {
-      router.replace("/checkout");
-      return;
-    }
+    const loadDelivery = async () => {
+      const saved = loadCheckoutDelivery();
+      const response = await fetch("/api/delivery/zone");
+      const zone = (await response.json()) as {
+        latitude?: number;
+        longitude?: number;
+        error?: string;
+      };
 
-    setDelivery(saved);
+      if (cancelled) return;
+
+      if (
+        !response.ok ||
+        typeof zone.latitude !== "number" ||
+        typeof zone.longitude !== "number" ||
+        !saved ||
+        !isCheckoutDeliveryComplete(saved, {
+          latitude: zone.latitude,
+          longitude: zone.longitude,
+        })
+      ) {
+        router.replace("/checkout");
+        return;
+      }
+
+      setDelivery(saved);
+    };
+
+    void loadDelivery().catch(() => {
+      if (!cancelled) router.replace("/checkout");
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch, router]);
 
   useEffect(() => {
@@ -95,41 +125,12 @@ export default function CheckoutPaymentPage() {
     }
   }, [cartItems.length, loading, router]);
 
-  const finishOrder = async (paymentIds?: {
-    razorpayOrderId?: string;
-    razorpayPaymentId?: string;
-    razorpaySignature?: string;
-  }) => {
-    if (!delivery) return;
-
-    const session = getCartSession();
-    const result = await placeRestaurantOrder({
-      sessionId: session.sessionId,
-      customerName: delivery.fullName,
-      customerPhone: normalizeIndianPhone(delivery.mobileNumber),
-      deliveryAddressType: delivery.addressType,
-      locationId: delivery.locationId,
-      addressLine1: delivery.address,
-      area: delivery.area,
-      city: delivery.city,
-      pincode: delivery.pincode,
-      landmark: delivery.landmark,
-      latitude: delivery.latitude,
-      longitude: delivery.longitude,
-      deliveryInstructions: delivery.deliveryInstructions,
-      paymentMethod: "razorpay",
-      razorpayOrderId: paymentIds?.razorpayOrderId,
-      razorpayPaymentId: paymentIds?.razorpayPaymentId,
-      razorpaySignature: paymentIds?.razorpaySignature,
-    });
-
+  const showConfirmedOrder = (orderId: number | string) => {
     completingRef.current = true;
     clearCheckoutDelivery();
     clearVerifiedPayment();
     dispatch(clearCart());
-    router.replace(
-      `/order-success?orderId=${encodeURIComponent(result.orderId)}`,
-    );
+    router.replace(`/order-success?orderId=${encodeURIComponent(String(orderId))}`);
   };
 
   const completePaidOrder = async (payment: {
@@ -137,31 +138,23 @@ export default function CheckoutPaymentPage() {
     razorpay_payment_id: string;
     razorpay_signature: string;
   }) => {
-    setSubmitLabel("Verifying payment...");
+    setSubmitLabel("Confirming order...");
+    saveVerifiedPayment(payment);
 
-    const verification = await fetchJson<{ success: boolean }>(
-      "/api/verify-payment",
+    const confirmed = await fetchJson<{ orderId: number | string }>(
+      "/api/orders/confirm",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payment),
+        body: JSON.stringify({
+          razorpayOrderId: payment.razorpay_order_id,
+          razorpayPaymentId: payment.razorpay_payment_id,
+          razorpaySignature: payment.razorpay_signature,
+        }),
       },
     );
 
-    if (!verification.success) {
-      clearVerifiedPayment();
-      throw new PaymentFailedError(
-        "Payment could not be verified. Your order was not placed.",
-      );
-    }
-
-    saveVerifiedPayment(payment);
-    setSubmitLabel("Placing order...");
-    await finishOrder({
-      razorpayOrderId: payment.razorpay_order_id,
-      razorpayPaymentId: payment.razorpay_payment_id,
-      razorpaySignature: payment.razorpay_signature,
-    });
+    showConfirmedOrder(confirmed.orderId);
   };
 
   useEffect(() => {
@@ -210,11 +203,20 @@ export default function CheckoutPaymentPage() {
       });
   }, [delivery]);
 
+  const unavailableItems = cartItems.filter((item) => item.is_available === false);
+  const unavailableMessage =
+    unavailableItems.length > 0 ? unavailableCartMessage(unavailableItems) : null;
+
   const handlePay = async () => {
     if (!delivery || isSubmitting) return;
 
     if (ordering.enabled === false) {
       setFormError(ONLINE_ORDERING_CLOSED_TITLE);
+      return;
+    }
+
+    if (unavailableMessage) {
+      setFormError(unavailableMessage);
       return;
     }
 
@@ -229,52 +231,61 @@ export default function CheckoutPaymentPage() {
         return;
       }
 
-      const amountPaise = calculateOrderTotals(totalAmount).customerPaise;
+      setSubmitLabel("Reserving order...");
 
-      if (amountPaise < 100) {
+      const session = getCartSession();
+      const prepared = await fetchJson<{
+        kind: "payment" | "already_paid";
+        orderId: number;
+        razorpayOrderId?: string;
+        amount?: number;
+        currency?: string;
+        keyId?: string;
+        total: number;
+      }>("/api/orders/prepare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: session.sessionId,
+          customerName: delivery.fullName,
+          customerPhone: normalizeIndianPhone(delivery.mobileNumber),
+          addressLine1: delivery.address,
+          area: delivery.area,
+          city: delivery.city,
+          pincode: delivery.pincode,
+          landmark: delivery.landmark,
+          latitude: delivery.latitude,
+          longitude: delivery.longitude,
+          special_requests:
+            typeof delivery.specialRequests === "string"
+              ? delivery.specialRequests.trim()
+              : "",
+          deliveryInstructions: delivery.deliveryInstructions,
+        }),
+      });
+
+      if (prepared.kind === "already_paid") {
+        showConfirmedOrder(prepared.orderId);
+        return;
+      }
+
+      if (!prepared.razorpayOrderId || !prepared.amount || !prepared.currency || !prepared.keyId) {
+        throw new Error("The payment order could not be opened.");
+      }
+
+      if (prepared.amount < 100) {
         throw new Error("Order total is too low to pay online.");
       }
 
       setSubmitLabel("Opening payment...");
 
-      const session = getCartSession();
-      const receipt = `fit_${session.sessionId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 16)}_${Date.now().toString(36)}`.slice(
-        0,
-        40,
-      );
-
-      const razorpayOrder = await fetchJson<{
-        order_id: string;
-        amount: number | string;
-        currency: string;
-        key_id?: string;
-      }>("/api/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: amountPaise,
-          currency: "INR",
-          receipt,
-          sessionId: session.sessionId,
-        }),
-      });
-
-      const checkoutKey =
-        razorpayOrder.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-
-      if (!checkoutKey) {
-        throw new Error(
-          "Razorpay is not configured. Missing NEXT_PUBLIC_RAZORPAY_KEY_ID.",
-        );
-      }
-
       const payment = await openRazorpayCheckout({
-        key: checkoutKey,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
+        key: prepared.keyId,
+        amount: prepared.amount,
+        currency: prepared.currency,
         name: "Fitarrito",
         description: "Order payment",
-        order_id: razorpayOrder.order_id,
+        order_id: prepared.razorpayOrderId,
         callback_url: `${window.location.origin}/api/razorpay/callback`,
         timeout: 300,
         retry: { enabled: true },
@@ -316,13 +327,18 @@ export default function CheckoutPaymentPage() {
   }
 
   const existingPayment = loadVerifiedPayment();
-  const payableAmount = calculateOrderTotals(totalAmount).total;
+  const payableAmount = calculateOrderTotals(
+    totalAmount,
+    delivery.deliveryCharge ?? 0,
+  ).total;
   const payLabel = existingPayment
     ? "Complete Order"
     : `Pay ${formatRupees(payableAmount)} Securely`;
-  const buttonHint = existingPayment
-    ? "Payment received. Click to finish placing your order."
-    : "You will be redirected to Razorpay to complete the payment";
+  const buttonHint = unavailableMessage
+    ? unavailableMessage
+    : existingPayment
+      ? "Payment received. Click to finish placing your order."
+      : "You will be redirected to Razorpay to complete the payment";
 
   return (
     <div className={styles.page}>
@@ -437,8 +453,12 @@ export default function CheckoutPaymentPage() {
 
         <OrderSummaryPanel
           variant="payment"
+          deliveryCharge={delivery.deliveryCharge}
+          distanceKm={delivery.distanceKm}
           onPlaceOrder={() => void handlePay()}
-          placeOrderDisabled={cartItems.length === 0 || isSubmitting}
+          placeOrderDisabled={
+            cartItems.length === 0 || isSubmitting || Boolean(unavailableMessage)
+          }
           isSubmitting={isSubmitting}
           submitLabel={isSubmitting ? submitLabel : payLabel}
           buttonHint={buttonHint}

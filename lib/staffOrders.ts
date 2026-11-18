@@ -6,6 +6,10 @@ import { getSupabaseAdminClient, getSupabaseAdminConfig } from "@lib/getSupabase
 import { getPreparationEstimate } from "@lib/whatsapp/customerConfirmation";
 import { decodeDessertSelection } from "@lib/desserts";
 import { decodeSoupSelection } from "@lib/soups";
+import {
+  decodeSoupsBowlsSelection,
+  formatSoupsBowlsChoice,
+} from "@lib/soupsBowlsOrder";
 
 const ACTIVE_STATUSES = ["pending", "confirmed", "preparing"];
 
@@ -21,8 +25,11 @@ const ORDER_COLUMNS = `
   delivery_city,
   delivery_pincode,
   delivery_landmark,
+  delivery_instructions,
+  special_requests,
   delivery_latitude,
   delivery_longitude,
+  delivery_charge,
   total,
   payment_method,
   status,
@@ -56,8 +63,11 @@ type OrderRow = {
   delivery_city?: string | null;
   delivery_pincode?: string | null;
   delivery_landmark?: string | null;
+  delivery_instructions?: string | null;
+  special_requests?: string | null;
   delivery_latitude?: number | null;
   delivery_longitude?: number | null;
+  delivery_charge?: number | string | null;
   total: number | string;
   payment_method: string;
   status: string;
@@ -72,6 +82,8 @@ export type StaffOrder = {
   customerName: string;
   customerPhone: string;
   deliveryLocation: string;
+  deliveryCharge: number | null;
+  deliveryDistanceKm: number | null;
   total: number;
   paymentMethod: string;
   paymentStatus: string;
@@ -79,6 +91,8 @@ export type StaffOrder = {
   createdAt: string | null;
   updatedAt: string | null;
   preparationLabel: string | null;
+  specialRequests: string | null;
+  deliveryInstructions: string | null;
   items: Array<{
     id: number;
     name: string;
@@ -125,6 +139,11 @@ function mapOrder(order: OrderRow): StaffOrder {
     customerName: order.customer_name,
     customerPhone: order.customer_phone,
     deliveryLocation: deliveryLocation(order),
+    deliveryCharge:
+      order.delivery_charge == null || order.delivery_charge === ""
+        ? null
+        : Number(order.delivery_charge),
+    deliveryDistanceKm: null,
     total: Number(order.total),
     paymentMethod: order.payment_method,
     paymentStatus: paymentStatus(order.payment_method ?? ""),
@@ -133,14 +152,21 @@ function mapOrder(order: OrderRow): StaffOrder {
     updatedAt: order.updated_at,
     preparationLabel:
       getPreparationEstimate(order.preparation_time_minutes)?.label ?? null,
+    specialRequests: order.special_requests?.trim() || null,
+    deliveryInstructions: order.delivery_instructions?.trim() || null,
     items: (order.order_items ?? []).map((item) => ({
       id: item.id,
       name: item.item_name,
-      protein:
-        decodeDessertSelection(item.selected_protein) ||
-        decodeSoupSelection(item.selected_protein)
+      protein: (() => {
+        const soupsBowls = decodeSoupsBowlsSelection(item.selected_protein);
+
+        if (soupsBowls) return formatSoupsBowlsChoice(soupsBowls);
+
+        return decodeDessertSelection(item.selected_protein) ||
+          decodeSoupSelection(item.selected_protein)
           ? null
-          : item.selected_protein,
+          : item.selected_protein;
+      })(),
       quantity: item.quantity,
     })),
   };
@@ -161,19 +187,49 @@ export function createStaffRealtimeClient(): SupabaseClient {
   });
 }
 
+async function attachDeliveryDistance(orders: StaffOrder[]) {
+  if (orders.length === 0) return orders;
+
+  const supabaseAdmin = getSupabaseAdminClient();
+  const { data, error } = await supabaseAdmin
+    .from("orders")
+    .select("id, delivery_distance_km")
+    .in(
+      "id",
+      orders.map((order) => order.id),
+    );
+
+  if (error || !data) return orders;
+
+  const distances = new Map(
+    data.map((row) => [row.id as number, row.delivery_distance_km as number | null]),
+  );
+
+  return orders.map((order) => {
+    const distanceKm = distances.get(order.id);
+
+    return {
+      ...order,
+      deliveryDistanceKm:
+        typeof distanceKm === "number" && Number.isFinite(distanceKm) ? distanceKm : null,
+    };
+  });
+}
+
 export async function listActiveStaffOrders() {
   const supabaseAdmin = getSupabaseAdminClient();
   const { data, error } = await supabaseAdmin
     .from("orders")
     .select(ORDER_COLUMNS)
     .in("status", ACTIVE_STATUSES)
+    .or("order_source.is.null,order_source.not.in.(awaiting_payment,payment_failed)")
     .not("area", "is", null)
     .order("created_at", { ascending: false })
     .limit(40);
 
   if (error) throw error;
 
-  return ((data ?? []) as OrderRow[]).map(mapOrder);
+  return attachDeliveryDistance(((data ?? []) as OrderRow[]).map(mapOrder));
 }
 
 export async function getActiveStaffOrder(orderId: number) {
@@ -183,11 +239,14 @@ export async function getActiveStaffOrder(orderId: number) {
     .select(ORDER_COLUMNS)
     .eq("id", orderId)
     .in("status", ACTIVE_STATUSES)
+    .or("order_source.is.null,order_source.not.in.(awaiting_payment,payment_failed)")
     .not("area", "is", null)
     .maybeSingle();
 
   if (error) throw error;
   if (!data) return null;
 
-  return mapOrder(data as OrderRow);
+  const [order] = await attachDeliveryDistance([mapOrder(data as OrderRow)]);
+
+  return order ?? null;
 }

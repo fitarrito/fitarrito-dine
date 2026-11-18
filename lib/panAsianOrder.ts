@@ -23,8 +23,6 @@ export type PanAsianIngredient = {
 
 const DISH_ORDER = [
   "Korean Bibimbap",
-  "Japanese Ramen",
-  "Laksa",
   "Tom Yum Noodle Bowl",
   "Mala Xiang Guo",
   "Malatang",

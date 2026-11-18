@@ -6,6 +6,10 @@ import {
 import { getPreparationEstimate } from "@lib/whatsapp/customerConfirmation";
 import { decodeDessertSelection } from "@lib/desserts";
 import { decodeSoupSelection } from "@lib/soups";
+import {
+  decodeSoupsBowlsSelection,
+  formatSoupsBowlsChoice,
+} from "@lib/soupsBowlsOrder";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +71,7 @@ export async function POST(request: Request) {
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, area, delivery_address_type, delivery_location_name, delivery_address, delivery_area, delivery_city, delivery_pincode, delivery_landmark, delivery_latitude, delivery_longitude, delivery_instructions, subtotal, delivery_charge, total, payment_method, status, created_at, updated_at, preparation_time_minutes",
+        "id, customer_name, customer_phone, area, delivery_address_type, delivery_location_name, delivery_address, delivery_area, delivery_city, delivery_pincode, delivery_landmark, delivery_latitude, delivery_longitude, delivery_instructions, special_requests, subtotal, delivery_charge, total, payment_method, status, created_at, updated_at, preparation_time_minutes",
       )
       .eq("id", orderId)
       .eq("session_id", sessionId)
@@ -119,6 +123,14 @@ export async function POST(request: Request) {
     }
 
     const preparation = getPreparationEstimate(order.preparation_time_minutes);
+    const distanceResult = await supabaseAdmin
+      .from("orders")
+      .select("delivery_distance_km")
+      .eq("id", orderId)
+      .maybeSingle();
+    const distanceValue = Number(distanceResult.data?.delivery_distance_km);
+    const deliveryDistanceKm =
+      distanceResult.error || !Number.isFinite(distanceValue) ? null : distanceValue;
 
     return NextResponse.json({
       order: {
@@ -127,8 +139,11 @@ export async function POST(request: Request) {
         customerPhone: order.customer_phone,
         deliveryLocation: deliveryLocation(order),
         deliveryInstructions: order.delivery_instructions,
+        specialRequests: order.special_requests?.trim() || null,
+        special_requests: order.special_requests?.trim() || null,
         subtotal: Number(order.subtotal),
         deliveryCharge: Number(order.delivery_charge),
+        deliveryDistanceKm,
         total: Number(order.total),
         paymentMethod: order.payment_method,
         status: order.status,
@@ -139,11 +154,16 @@ export async function POST(request: Request) {
       items: (items ?? []).map((item) => ({
         id: item.id,
         name: item.item_name,
-        protein:
-          decodeDessertSelection(item.selected_protein) ||
-          decodeSoupSelection(item.selected_protein)
+        protein: (() => {
+          const soupsBowls = decodeSoupsBowlsSelection(item.selected_protein);
+
+          if (soupsBowls) return formatSoupsBowlsChoice(soupsBowls);
+
+          return decodeDessertSelection(item.selected_protein) ||
+            decodeSoupSelection(item.selected_protein)
             ? null
-            : item.selected_protein,
+            : item.selected_protein;
+        })(),
         unitPrice: Number(item.unit_price),
         quantity: Number(item.quantity),
         basePrice: Number(item.base_price),

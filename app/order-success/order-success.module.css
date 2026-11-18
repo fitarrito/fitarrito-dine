@@ -303,6 +303,33 @@
   font-size: 0.85rem;
 }
 
+.bill {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.4rem 0 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.bill div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.88rem;
+}
+
+.bill strong {
+  font-size: 0.88rem;
+}
+
+.billNote {
+  margin: 0.2rem 0 0;
+  color: #047857;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .help {
   display: flex;
   align-items: center;

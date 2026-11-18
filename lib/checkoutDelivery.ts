@@ -1,4 +1,8 @@
-import { isInsideDeliveryZone, parseDeliveryCoordinate } from "@lib/deliveryZone";
+import {
+  isWithinDeliveryRadius,
+  parseDeliveryCoordinate,
+  type DeliveryCoordinate,
+} from "@lib/deliveryZone";
 
 export type DeliveryAddressType = "selected_location" | "normal_address";
 
@@ -14,13 +18,16 @@ export type CheckoutDelivery = {
   pincode: string;
   latitude: number | null;
   longitude: number | null;
+  deliveryCharge: number | null;
+  distanceKm: number | null;
+  specialRequests: string;
   deliveryInstructions: string;
 };
 
 const STORAGE_KEY = "fitarrito_checkout_delivery";
 
 export const EMPTY_CHECKOUT_DELIVERY: CheckoutDelivery = {
-  addressType: "selected_location",
+  addressType: "normal_address",
   locationId: "",
   fullName: "",
   mobileNumber: "",
@@ -31,6 +38,9 @@ export const EMPTY_CHECKOUT_DELIVERY: CheckoutDelivery = {
   pincode: "",
   latitude: null,
   longitude: null,
+  deliveryCharge: null,
+  distanceKm: null,
+  specialRequests: "",
   deliveryInstructions: "",
 };
 
@@ -54,16 +64,29 @@ export function loadCheckoutDelivery(): CheckoutDelivery | null {
 
     const parsed = JSON.parse(raw) as Partial<CheckoutDelivery>;
     const coordinate = parseDeliveryCoordinate(parsed.latitude, parsed.longitude);
+    const enteredAddress = parsed.addressType === "normal_address";
 
     return {
       ...EMPTY_CHECKOUT_DELIVERY,
-      ...parsed,
-      addressType:
-        parsed.addressType === "normal_address"
-          ? "normal_address"
-          : "selected_location",
-      latitude: coordinate?.latitude ?? null,
-      longitude: coordinate?.longitude ?? null,
+      fullName: parsed.fullName ?? "",
+      mobileNumber: parsed.mobileNumber ?? "",
+      specialRequests: parsed.specialRequests ?? "",
+      deliveryInstructions: parsed.deliveryInstructions ?? "",
+      address: enteredAddress ? (parsed.address ?? "") : "",
+      area: enteredAddress ? (parsed.area ?? "") : "",
+      landmark: enteredAddress ? (parsed.landmark ?? "") : "",
+      city: enteredAddress ? (parsed.city || "Chennai") : "Chennai",
+      pincode: enteredAddress ? (parsed.pincode ?? "") : "",
+      addressType: "normal_address",
+      locationId: "",
+      latitude: enteredAddress ? (coordinate?.latitude ?? null) : null,
+      longitude: enteredAddress ? (coordinate?.longitude ?? null) : null,
+      deliveryCharge:
+        enteredAddress && typeof parsed.deliveryCharge === "number"
+          ? parsed.deliveryCharge
+          : null,
+      distanceKm:
+        enteredAddress && typeof parsed.distanceKm === "number" ? parsed.distanceKm : null,
     };
   } catch {
     return null;
@@ -80,31 +103,28 @@ export function clearCheckoutDelivery() {
   }
 }
 
-export function isCheckoutDeliveryComplete(data: CheckoutDelivery) {
+export function isCheckoutDeliveryComplete(
+  data: CheckoutDelivery,
+  origin: DeliveryCoordinate,
+) {
   const hasContact = Boolean(data.fullName.trim() && data.mobileNumber.trim());
 
   if (!hasContact) return false;
 
-  if (data.addressType === "normal_address") {
-    return Boolean(
-      data.address.trim() &&
-        data.area.trim() &&
-        data.city.trim() &&
-        data.pincode.trim() &&
-        data.latitude != null &&
-        data.longitude != null &&
-        isInsideDeliveryZone(data.latitude, data.longitude),
-    );
-  }
-
-  return Boolean(data.area.trim());
+  return Boolean(
+    data.address.trim() &&
+      data.area.trim() &&
+      data.city.trim() &&
+      data.pincode.trim() &&
+      typeof data.deliveryCharge === "number" &&
+      typeof data.distanceKm === "number" &&
+      data.latitude != null &&
+      data.longitude != null &&
+      isWithinDeliveryRadius(origin, data.latitude, data.longitude),
+  );
 }
 
 export function deliveryDisplayLocation(data: CheckoutDelivery) {
-  if (data.addressType !== "normal_address") {
-    return data.area.trim();
-  }
-
   return [data.address, data.area, data.city, data.pincode, data.landmark]
     .map((value) => value.trim())
     .filter(Boolean)

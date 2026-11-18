@@ -1,9 +1,33 @@
-export const SOUPS_CATEGORY_NAME = "Soups";
+export const SOUPS_CATEGORY_NAME = "Soups & Bowls";
+
+const SOUP_CATEGORY_NAMES = new Set(["soups", "soups and bowls"]);
 
 const SOUP_SELECTION = "Soups: Fixed";
 
+const SOUPS_AND_BOWLS_ORDER = [
+  "Japanese Ramen",
+  "Laksa",
+  "Tom Yum Soup",
+  "Vietnamese Pho Soup",
+  "Talumein Soup",
+  "Fitarrito Special Soup",
+  "Miso Soup",
+];
+
 export function isSoupsCategoryName(name?: string | null) {
-  return name?.trim().toLowerCase() === SOUPS_CATEGORY_NAME.toLowerCase();
+  const normalized = name?.trim().toLowerCase().replace("&", "and").replace(/\s+/g, " ");
+
+  return normalized != null && SOUP_CATEGORY_NAMES.has(normalized);
+}
+
+export function sortSoupsAndBowls<T extends { title: string }>(items: T[]) {
+  return items.slice().sort((left, right) => {
+    const leftIndex = SOUPS_AND_BOWLS_ORDER.indexOf(left.title);
+    const rightIndex = SOUPS_AND_BOWLS_ORDER.indexOf(right.title);
+
+    return (leftIndex === -1 ? SOUPS_AND_BOWLS_ORDER.length : leftIndex) -
+      (rightIndex === -1 ? SOUPS_AND_BOWLS_ORDER.length : rightIndex);
+  });
 }
 
 export function encodeSoupSelection() {

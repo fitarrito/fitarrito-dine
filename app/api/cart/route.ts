@@ -6,15 +6,16 @@ import {
 } from "@lib/getSupabaseAdmin";
 import { type CartItemRecord } from "@lib/cartItemsServer";
 import { repriceCartRows } from "@lib/pricedCart";
-import { calculateMenuItemPricing, findSizeVariant } from "@lib/menuPricing";
-import { quoteStoredAsianStartersGravySelection } from "@lib/asianStartersGravyCatalog";
+import { findSizeVariant } from "@lib/menuPricing";
+import { loadAsianStartersGravyCatalog } from "@lib/asianStartersGravyCatalog";
 import { isAsianStartersGravyCuisine } from "@lib/asianStartersGravyOrder";
-import { quoteStoredPanAsianSelection } from "@lib/panAsianCatalog";
+import { loadPanAsianCatalog } from "@lib/panAsianCatalog";
 import { isPanAsianCuisine } from "@lib/panAsianOrder";
-import { isDessertTitle, quoteDessertSelection } from "@lib/desserts";
-import { isSoupsCategoryName, quoteSoupSelection } from "@lib/soups";
-import { getProteinNameForPricing } from "@lib/fitarritoHouseMenu";
-import type { menuItem, ProteinVariant } from "@/types/types";
+import { isSoupsCategoryName } from "@lib/soups";
+import { loadSoupsBowlsCatalog } from "@lib/soupsBowlsCatalog";
+import { quoteOrderItem } from "@lib/orderQuote";
+import { isBlockedMenuTitle, isMenuItemAvailable, unavailableCartMessage } from "@lib/menuVisibility";
+import type { menuItem } from "@/types/types";
 import { onlineOrderingBlock } from "@lib/storeOrdering";
 
 export const dynamic = "force-dynamic";
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
       supabaseAdmin
         .from("MenuItem")
         .select(
-          "id, title, price, imageUrl, proteinVariants, sizeVariants, order_type, cuisine, categoryId",
+          "id, title, price, imageUrl, proteinVariants, sizeVariants, order_type, cuisine, categoryId, is_available",
         )
         .eq("id", menuItemId)
         .single(),
@@ -124,9 +125,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const proteinVariants = Array.isArray(menuItemRow.proteinVariants)
-      ? (menuItemRow.proteinVariants as ProteinVariant[])
-      : [];
+    if (isBlockedMenuTitle(menuItemRow.title)) {
+      return NextResponse.json({ error: "This dish is not on the menu." }, { status: 400 });
+    }
+
+    if (!isMenuItemAvailable(menuItemRow)) {
+      return NextResponse.json(
+        { error: unavailableCartMessage([menuItemRow]) },
+        { status: 400 },
+      );
+    }
 
     const hasSizeVariants =
       Array.isArray(menuItemRow.sizeVariants) &&
@@ -149,114 +157,58 @@ export async function POST(request: Request) {
       );
     }
 
-    const panAsian = isPanAsianCuisine(menuItemRow.cuisine);
-    const asianStartersGravy = isAsianStartersGravyCuisine(menuItemRow.cuisine);
-    const dessert = isDessertTitle(menuItemRow.title);
-    let pricing: {
-      base_price: number;
-      protein_price: number;
-      price: number;
-    };
-    let storedProtein = selectedProtein;
+    const categoryId = Number(menuItemRow.categoryId);
+    let categoryName: string | null = null;
 
-    if (dessert) {
-      const quote = quoteDessertSelection(menuItemRow.title, String(selectedProtein));
-
-      if ("error" in quote) {
-        return NextResponse.json({ error: quote.error }, { status: 400 });
-      }
-
-      pricing = quote;
-      storedProtein = quote.selection;
-    } else if (panAsian) {
-      const categoryId = Number(menuItemRow.categoryId);
-      const hasCategoryId = Number.isInteger(categoryId) && categoryId > 0;
-      let categoryName: string | null = null;
-
-      if (hasCategoryId) {
-        const { data: categoryRow, error: categoryError } = await withTimeout(
-          supabaseAdmin
-            .from("Category")
-            .select("name")
-            .eq("id", categoryId)
-            .maybeSingle(),
-          10_000,
-          "Soup category lookup",
-        );
-
-        if (categoryError) {
-          console.error("Soup category lookup failed:", {
-            menuItemId,
-            categoryId,
-            message: categoryError.message,
-          });
-
-          return NextResponse.json(
-            { error: "Unable to price this menu item." },
-            { status: 500 },
-          );
-        }
-
-        categoryName = categoryRow?.name ?? null;
-      }
-
-      if (isSoupsCategoryName(categoryName)) {
-        const quote = quoteSoupSelection(menuItemRow.price, String(selectedProtein));
-
-        if ("error" in quote) {
-          return NextResponse.json({ error: quote.error }, { status: 400 });
-        }
-
-        pricing = quote;
-        storedProtein = quote.selection;
-      } else {
-        const quote = await quoteStoredPanAsianSelection(
-          menuItemRow.title,
-          String(selectedProtein),
-        );
-
-        if ("error" in quote) {
-          return NextResponse.json({ error: quote.error }, { status: 400 });
-        }
-
-        pricing = quote;
-        storedProtein = quote.selection;
-      }
-    } else if (asianStartersGravy) {
-      const quote = await quoteStoredAsianStartersGravySelection(
-        menuItemRow.title,
-        String(selectedProtein),
+    if (Number.isInteger(categoryId) && categoryId > 0) {
+      const { data: categoryRow, error: categoryError } = await withTimeout(
+        supabaseAdmin.from("Category").select("name").eq("id", categoryId).maybeSingle(),
+        10_000,
+        "Category lookup",
       );
 
-      if ("error" in quote) {
-        return NextResponse.json({ error: quote.error }, { status: 400 });
-      }
+      if (categoryError) {
+        console.error("Category lookup failed:", {
+          menuItemId,
+          categoryId,
+          message: categoryError.message,
+        });
 
-      pricing = quote;
-      storedProtein = quote.selection;
-    } else {
-      const proteinName = getProteinNameForPricing(selectedProtein) ?? selectedProtein;
-      const protein = proteinVariants.find(
-        (item) =>
-          item.name === proteinName &&
-          item.name.toLowerCase() !== "mutton",
-      );
-
-      if (!protein) {
         return NextResponse.json(
-          {
-            error: `Protein "${proteinName}" is not available for this item.`,
-          },
-          { status: 400 },
+          { error: "Unable to price this menu item." },
+          { status: 500 },
         );
       }
 
-      pricing = calculateMenuItemPricing(
-        menuItemRow as menuItem,
-        selectedProtein,
-        selectedSize,
-      );
+      categoryName = categoryRow?.name ?? null;
     }
+
+    const panPrices = isPanAsianCuisine(menuItemRow.cuisine)
+      ? await loadPanAsianCatalog([String(menuItemRow.title)])
+      : { prices: [], ingredients: [] };
+    const starterPrices = isAsianStartersGravyCuisine(menuItemRow.cuisine)
+      ? await loadAsianStartersGravyCatalog([String(menuItemRow.title)])
+      : [];
+    const soupsBowlsPrices = isSoupsCategoryName(categoryName)
+      ? await loadSoupsBowlsCatalog([String(menuItemRow.title)])
+      : [];
+    const quote = quoteOrderItem({
+      item: menuItemRow as menuItem,
+      categoryName,
+      selectedProtein,
+      selectedSize,
+      panAsianPrices: panPrices.prices,
+      panAsianIngredients: panPrices.ingredients,
+      asianStarterPrices: starterPrices,
+      soupsBowlsPrices,
+    });
+
+    if ("error" in quote) {
+      return NextResponse.json({ error: quote.error }, { status: 400 });
+    }
+
+    const pricing = quote;
+    const storedProtein = pricing.selection;
     const { base_price: basePrice, protein_price: proteinPrice, price: unitPrice } =
       pricing;
 
@@ -407,6 +359,31 @@ export async function PATCH(req: Request) {
     }
 
     const supabaseAdmin = getSupabaseAdminClient();
+    const { data: existingRow, error: existingError } = await supabaseAdmin
+      .from("CartItems")
+      .select("id, menu_item_id, title")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (existingError || !existingRow) {
+      return NextResponse.json({ error: "Cart item not found." }, { status: 404 });
+    }
+
+    const { data: menuItemRow, error: menuError } = await supabaseAdmin
+      .from("MenuItem")
+      .select("title, is_available")
+      .eq("id", existingRow.menu_item_id)
+      .maybeSingle();
+
+    if (menuError) throw menuError;
+
+    if (menuItemRow && !isMenuItemAvailable(menuItemRow)) {
+      return NextResponse.json(
+        { error: unavailableCartMessage([menuItemRow]) },
+        { status: 400 },
+      );
+    }
+
     const { data: cartRow, error: cartError } = await supabaseAdmin
       .from("CartItems")
       .update({ quantity })

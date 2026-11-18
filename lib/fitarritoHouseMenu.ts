@@ -5,7 +5,12 @@ import type {
 } from "@/types/types";
 import { decodeAsianStartersGravySelection } from "@lib/asianStartersGravyOrder";
 import { decodeDessertSelection } from "@lib/desserts";
+import { isHiddenCartProtein } from "@lib/menuVisibility";
 import { decodeSoupSelection } from "@lib/soups";
+import {
+  decodeSoupsBowlsSelection,
+  formatSoupsBowlsChoice,
+} from "@lib/soupsBowlsOrder";
 import { decodePanAsianSelection } from "@lib/panAsianOrder";
 
 const SALAD_SELECTION_DELIMITER = "||";
@@ -127,12 +132,22 @@ export function getCartItemCustomization(item: {
   selected_protein?: string | null;
   selected_size?: string | null;
 }) {
+  const soupsBowls = decodeSoupsBowlsSelection(item.selected_protein);
+
+  if (soupsBowls) {
+    return {
+      title: item.title,
+      protein: formatSoupsBowlsChoice(soupsBowls),
+      toppings: null as string | null,
+    };
+  }
+
   if (
     decodeDessertSelection(item.selected_protein) ||
     decodeSoupSelection(item.selected_protein)
   ) {
     return {
-      title: item.title,
+      title: item.selected_size ? `${item.title} (${item.selected_size})` : item.title,
       protein: null,
       toppings: null as string | null,
     };
@@ -165,7 +180,7 @@ export function getCartItemCustomization(item: {
       title: item.selected_size
         ? `${item.title} (${item.selected_size})`
         : item.title,
-      protein: item.selected_protein ?? null,
+      protein: isHiddenCartProtein(item.selected_protein) ? null : (item.selected_protein ?? null),
       toppings: null as string | null,
     };
   }

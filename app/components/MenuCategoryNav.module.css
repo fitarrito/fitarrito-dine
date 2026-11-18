@@ -62,7 +62,9 @@
 .icon:has(.iconImage[src*="pan-asian"]),
 .icon:has(.iconImage[src*="asian-starters"]),
 .icon:has(.iconImage[src*="desserts"]),
-.icon:has(.iconImage[src*="soups"]) {
+.icon:has(.iconImage[src*="soups"]),
+.icon:has(.iconImage[src*="bowls"]),
+.icon:has(.iconImage[src*="beverages"]) {
   width: 1.85rem;
   height: 1.28rem;
   border-radius: 0;
@@ -97,7 +99,9 @@
   .icon:has(.iconImage[src*="pan-asian"]),
   .icon:has(.iconImage[src*="asian-starters"]),
   .icon:has(.iconImage[src*="desserts"]),
-  .icon:has(.iconImage[src*="soups"]) {
+  .icon:has(.iconImage[src*="soups"]),
+.icon:has(.iconImage[src*="bowls"]),
+  .icon:has(.iconImage[src*="beverages"]) {
     width: 2.15rem;
     height: 1.45rem;
   }

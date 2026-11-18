@@ -17,6 +17,12 @@
   font-weight: 800;
 }
 
+.heading p {
+  margin: 0.3rem 0 0;
+  color: #6b7280;
+  font-size: 0.92rem;
+}
+
 .list {
   display: flex;
   flex-direction: column;
@@ -47,34 +53,10 @@
 }
 
 .cardImage {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: center;
-}
-
-.stroke {
-  position: absolute;
-  z-index: 1;
-  display: block;
-  background: #e10600;
-  pointer-events: none;
-}
-
-.strokeTop {
-  top: 0.65rem;
-  left: -0.8rem;
-  width: 4.6rem;
-  height: 0.72rem;
-  border-radius: 999px;
-  transform: rotate(-28deg);
-}
-
-.strokeBottom {
-  right: -0.7rem;
-  bottom: 0.85rem;
-  width: 4.2rem;
-  height: 0.62rem;
-  border-radius: 999px;
-  transform: rotate(-24deg);
 }
 
 .body {
@@ -207,6 +189,258 @@
   }
 }
 
+.optionCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.8rem 0.9rem 0.9rem 0;
+  border-radius: 1.35rem;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.photo {
+  position: relative;
+  width: 7.4rem;
+  height: 7.4rem;
+  flex: 0 0 7.4rem;
+  margin: 0.15rem 0 0 0.8rem;
+  overflow: visible;
+  border-radius: 1rem;
+  background: #f3f4f6;
+}
+
+.photo img,
+.photoFallback {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 1rem;
+}
+
+.photoFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--customTheme, #fc1e1e);
+  background:
+    radial-gradient(circle at 50% 42%, #fff 0 28%, transparent 29%),
+    linear-gradient(160deg, #fff5f5, #ffe4e6);
+}
+
+.photoFallback svg {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+.optionBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: 0.15rem;
+}
+
+.serving,
+.proteins,
+.ingredients div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.serving {
+  margin-top: 0.7rem;
+}
+
+.serving button,
+.protein,
+.proteinActive,
+.ingredient,
+.ingredientActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.15rem;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.serving button {
+  padding: 0.35rem 0.8rem;
+}
+
+.serving button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.servingIdle {
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: var(--customTheme, #fc1e1e);
+}
+
+.servingActive {
+  border: 1px solid var(--customTheme, #fc1e1e);
+  background: var(--customTheme, #fc1e1e);
+  color: #fff;
+}
+
+.serving button strong,
+.protein strong,
+.proteinActive strong {
+  font-weight: 800;
+}
+
+.proteins {
+  margin-top: 0.65rem;
+}
+
+.protein,
+.proteinActive {
+  padding: 0.32rem 0.72rem;
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #374151;
+  font-weight: 650;
+  box-shadow: none;
+}
+
+.proteinActive {
+  border-color: var(--customTheme, #fc1e1e);
+  background: color-mix(in srgb, var(--customTheme, #fc1e1e) 8%, #fff);
+  color: var(--customTheme, #fc1e1e);
+}
+
+.proteinIcon {
+  display: inline-flex;
+  font-size: 0.95rem;
+}
+
+.proteinIconVeg {
+  color: #16a34a;
+}
+
+.proteinIconChicken {
+  color: #d97706;
+}
+
+.proteinIconSeafood {
+  color: #ef4444;
+}
+
+.ingredientPanel {
+  margin-top: 0.75rem;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.ingredientHeading {
+  margin: 0;
+  padding: 0.7rem 0.8rem 0.45rem;
+  color: #111827;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.ingredientHeading small {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.ingredientGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 0.75rem;
+  padding: 0 0.8rem 0.8rem;
+}
+
+.ingredientChoice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #374151;
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ingredientChoice input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.radio {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  border: 1.5px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+
+.ingredientChoice input:checked + .radio {
+  border-color: var(--customTheme, #fc1e1e);
+  background: var(--customTheme, #fc1e1e);
+}
+
+.ingredientChoice img {
+  width: 1.35rem;
+  height: 1.35rem;
+  object-fit: contain;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.optionCard .price {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.optionCard .actions {
+  margin-top: 0;
+}
+
+@media (max-width: 520px) {
+  .optionCard {
+    gap: 0.65rem;
+    padding-right: 0.75rem;
+  }
+
+  .photo {
+    width: 5.6rem;
+    height: 5.6rem;
+    flex-basis: 5.6rem;
+    margin-left: 0.65rem;
+  }
+
+  .optionCard .price {
+    font-size: 1.25rem;
+  }
+}
+
 @media (min-width: 768px) {
   .section {
     padding-right: 2rem;
@@ -226,11 +460,14 @@
   }
 
   .imageWrap {
-    width: 38%;
-    max-width: 10.5rem;
-    height: auto;
-    min-height: 8.75rem;
-    flex-shrink: 0;
+    width: 8.25rem;
+    max-width: 8.25rem;
+    height: 8.25rem;
+    min-height: 0;
+    flex: 0 0 8.25rem;
+    align-self: center;
+    margin: 0.7rem 0 0.7rem 0.7rem;
+    border-radius: 0.85rem;
   }
 
   .body {

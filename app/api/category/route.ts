@@ -5,6 +5,7 @@ import {
   withTimeout,
 } from "@lib/getSupabaseServer";
 import { normalizeCuisineQuery } from "@lib/menuCuisine";
+import { isBlockedMenuTitle } from "@lib/menuVisibility";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,11 @@ export async function GET(request: Request) {
 
     if (cuisine) {
       const { data: menuItems, error: menuError } = await withTimeout(
-        supabase.from("MenuItem").select("categoryId").eq("cuisine", cuisine),
+        supabase
+          .from("MenuItem")
+          .select("categoryId, title")
+          .eq("cuisine", cuisine)
+          .eq("is_available", true),
         10_000,
         "Menu category lookup",
       );
@@ -42,6 +47,7 @@ export async function GET(request: Request) {
       const categoryIds = [
         ...new Set(
           (menuItems ?? [])
+            .filter((item) => !isBlockedMenuTitle(String(item.title ?? "")))
             .map((item) => Number(item.categoryId))
             .filter((id) => Number.isInteger(id) && id > 0),
         ),
@@ -52,7 +58,7 @@ export async function GET(request: Request) {
       }
 
       const { data, error } = await withTimeout(
-        supabase.from("Category").select("*").in("id", categoryIds),
+        supabase.from("Category").select("*").in("id", categoryIds).order("id"),
         10_000,
         "Category fetch",
       );

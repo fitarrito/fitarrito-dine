@@ -1,402 +1,67 @@
 import { NextResponse } from "next/server";
+import { DeliveryQuoteError } from "@lib/googleDelivery";
 import {
   getSupabaseAdminClient,
   getSupabaseAdminConfig,
 } from "@lib/getSupabaseAdmin";
-import {
-  isValidIndianMobile,
-  normalizeIndianPhone,
-} from "@lib/normalizePhone";
-import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
-import { decodeDessertSelection } from "@lib/desserts";
-import { decodeSoupSelection } from "@lib/soups";
-import { getDeliveryArea, getDeliveryAreaById } from "@lib/deliveryAreas";
-import {
-  LOCATION_REQUIRED_MESSAGE,
-  OUTSIDE_DELIVERY_ZONE_MESSAGE,
-  isInsideDeliveryZone,
-  parseDeliveryCoordinate,
-} from "@lib/deliveryZone";
-import { calculateOrderTotals } from "@lib/orderTotals";
-import { onlineOrderingBlock } from "@lib/storeOrdering";
-import { repriceCartRows } from "@lib/pricedCart";
-import type { CartItemRecord } from "@lib/cartItemsServer";
-import {
-  getRazorpayConfig,
-  getRazorpayConfigDiagnostics,
-  razorpayConfigurationError,
-  verifyRazorpayPayment,
-} from "@lib/razorpay";
+import { prepareCheckoutOrder } from "@lib/prepareCheckoutOrder";
+import { confirmRestaurantPayment, RestaurantOrderError } from "@lib/restaurantOrder";
 
 export const dynamic = "force-dynamic";
 
-function normalizePaymentMethod(value: unknown) {
-  const method = String(value ?? "razorpay").trim().toLowerCase();
-
-  if (method === "cash" || method === "qr" || method === "razorpay") {
-    return method;
+function errorResponse(error: unknown) {
+  if (error instanceof RestaurantOrderError || error instanceof DeliveryQuoteError) {
+    return NextResponse.json({ error: error.message }, { status: error.status });
   }
 
-  return "razorpay";
+  console.error("Place order error:", error);
+
+  return NextResponse.json(
+    { error: "Something went wrong while placing your order." },
+    { status: 500 },
+  );
 }
 
 export async function POST(request: Request) {
-  const orderingBlock = await onlineOrderingBlock();
-
-  if (orderingBlock) {
-    return NextResponse.json(
-      { error: orderingBlock.error },
-      { status: orderingBlock.status },
-    );
-  }
-
-  if (!getSupabaseAdminConfig()) {
-    return NextResponse.json(
-      {
-        error:
-          "Supabase admin is not configured. Add SUPABASE_SERVICE_ROLE_KEY.",
-      },
-      { status: 503 },
-    );
-  }
-
   try {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
+    const razorpayOrderId = body.razorpayOrderId;
+    const razorpayPaymentId = body.razorpayPaymentId;
+    const razorpaySignature = body.razorpaySignature;
+    const confirming =
+      typeof razorpayOrderId === "string" &&
+      razorpayOrderId &&
+      typeof razorpayPaymentId === "string" &&
+      razorpayPaymentId &&
+      typeof razorpaySignature === "string" &&
+      razorpaySignature;
 
-    const {
-      sessionId,
-      customerName,
-      customerPhone,
-      deliveryAddressType,
-      locationId,
-      addressLine1,
-      area,
-      city,
-      pincode,
-      landmark,
-      latitude,
-      longitude,
-      deliveryInstructions,
-      paymentMethod = "razorpay",
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
-    } = body;
-
-    if (!sessionId) {
-      return NextResponse.json(
-        { error: "Cart session is required." },
-        { status: 400 },
-      );
-    }
-
-    if (!customerName?.trim()) {
-      return NextResponse.json(
-        { error: "Please enter your name." },
-        { status: 400 },
-      );
-    }
-
-    if (!customerPhone?.trim()) {
-      return NextResponse.json(
-        { error: "Please enter your mobile number." },
-        { status: 400 },
-      );
-    }
-
-    const normalizedPhone = normalizeIndianPhone(customerPhone);
-
-    if (!isValidIndianMobile(normalizedPhone)) {
-      return NextResponse.json(
-        { error: "Please enter a valid 10-digit mobile number." },
-        { status: 400 },
-      );
-    }
-
-    const addressType =
-      deliveryAddressType === "normal_address"
-        ? "normal_address"
-        : "selected_location";
-    const selectedArea =
-      addressType === "selected_location"
-        ? getDeliveryAreaById(String(locationId ?? "")) ??
-          getDeliveryArea(String(area ?? "").trim())
-        : undefined;
-
-    if (addressType === "selected_location" && !selectedArea) {
-      return NextResponse.json(
-        { error: "Please select a valid delivery location." },
-        { status: 400 },
-      );
-    }
-
-    const customAddress = String(addressLine1 ?? "").trim();
-    const customArea = String(area ?? "").trim();
-    const customCity = String(city ?? "").trim();
-    const customPincode = String(pincode ?? "").trim();
-    const customLandmark = String(landmark ?? "").trim();
-
-    const deliveryCoordinate =
-      addressType === "normal_address"
-        ? parseDeliveryCoordinate(latitude, longitude)
-        : null;
-
-    if (addressType === "normal_address" && !deliveryCoordinate) {
-      return NextResponse.json(
-        { error: LOCATION_REQUIRED_MESSAGE },
-        { status: 400 },
-      );
-    }
-
-    if (
-      deliveryCoordinate &&
-      !isInsideDeliveryZone(deliveryCoordinate.latitude, deliveryCoordinate.longitude)
-    ) {
-      return NextResponse.json(
-        { error: OUTSIDE_DELIVERY_ZONE_MESSAGE },
-        { status: 400 },
-      );
-    }
-
-    if (
-      addressType === "normal_address" &&
-      (!customAddress || !customArea || !customCity || !customPincode)
-    ) {
-      return NextResponse.json(
-        { error: "Please enter your delivery address." },
-        { status: 400 },
-      );
-    }
-
-    const deliveryLocation =
-      addressType === "selected_location"
-        ? selectedArea!.name
-        : [customAddress, customArea, customCity, customPincode, customLandmark]
-            .filter(Boolean)
-            .join(", ");
-
-    const supabaseAdmin = getSupabaseAdminClient();
-
-    const { data: cartItems, error: cartError } = await supabaseAdmin
-      .from("CartItems")
-      .select("*")
-      .eq("session_id", sessionId);
-
-    if (cartError) {
-      console.error(cartError);
-
-      return NextResponse.json(
-        { error: "Unable to load cart." },
-        { status: 500 },
-      );
-    }
-
-    if (!cartItems || cartItems.length === 0) {
-      return NextResponse.json(
-        { error: "Your cart is empty." },
-        { status: 400 },
-      );
-    }
-
-    const pricedItems = await repriceCartRows(cartItems as CartItemRecord[]);
-    const subtotal = pricedItems.reduce(
-      (sum, item) => sum + Number(item.price) * Number(item.quantity),
-      0,
-    );
-
-    const deliveryCharge = 0;
-    const totals = calculateOrderTotals(subtotal, deliveryCharge);
-    const total = totals.total;
-    const storedPaymentMethod = normalizePaymentMethod(paymentMethod);
-
-    if (storedPaymentMethod === "razorpay") {
-      if (
-        typeof razorpayOrderId !== "string" ||
-        !razorpayOrderId ||
-        typeof razorpayPaymentId !== "string" ||
-        !razorpayPaymentId ||
-        typeof razorpaySignature !== "string" ||
-        !razorpaySignature
-      ) {
+    if (confirming) {
+      if (!getSupabaseAdminConfig()) {
         return NextResponse.json(
-          { error: "Verified Razorpay payment details are required." },
-          { status: 400 },
-        );
-      }
-
-      if (!getRazorpayConfig()) {
-        return NextResponse.json(
-          {
-            error: razorpayConfigurationError(),
-            missing: getRazorpayConfigDiagnostics().missing,
-          },
+          { error: "Supabase admin is not configured." },
           { status: 503 },
         );
       }
 
-      try {
-        const paymentVerification = await verifyRazorpayPayment({
-          orderId: razorpayOrderId,
-          paymentId: razorpayPaymentId,
-          signature: razorpaySignature,
-          expectedAmountPaise: totals.customerPaise,
-        });
-
-        if (!paymentVerification.verified) {
-          console.error(
-            `Razorpay payment validation failed for cart ${sessionId}: ${paymentVerification.reason}`,
-          );
-
-          return NextResponse.json(
-            { error: "Payment could not be verified for this order." },
-            { status: 400 },
-          );
-        }
-      } catch (error) {
-        console.error(
-          `Razorpay payment lookup failed for cart ${sessionId}:`,
-          error,
-        );
-
-        return NextResponse.json(
-          { error: "Unable to verify payment with Razorpay." },
-          { status: 502 },
-        );
-      }
-    }
-
-    const orderPayload = {
-      session_id: sessionId,
-      customer_name: customerName.trim(),
-      customer_phone: normalizedPhone,
-      area: deliveryLocation,
-      delivery_address_type: addressType,
-      delivery_location_id:
-        addressType === "selected_location" ? selectedArea!.id : null,
-      delivery_location_name:
-        addressType === "selected_location" ? selectedArea!.name : null,
-      delivery_address:
-        addressType === "normal_address" ? customAddress : null,
-      delivery_area:
-        addressType === "selected_location" ? selectedArea!.name : customArea,
-      delivery_city:
-        addressType === "selected_location" ? "Chennai" : customCity,
-      delivery_pincode:
-        addressType === "selected_location"
-          ? selectedArea!.pincode
-          : customPincode,
-      delivery_landmark:
-        addressType === "normal_address" && customLandmark
-          ? customLandmark
-          : null,
-      delivery_latitude: deliveryCoordinate?.latitude ?? null,
-      delivery_longitude: deliveryCoordinate?.longitude ?? null,
-      delivery_instructions: deliveryInstructions?.trim() || null,
-      subtotal,
-      delivery_charge: deliveryCharge,
-      total,
-      status: "pending",
-      whatsapp_status: "pending",
-    };
-
-    let { data: order, error: orderError } = await supabaseAdmin
-      .from("orders")
-      .insert({
-        ...orderPayload,
-        payment_method: storedPaymentMethod,
-      })
-      .select()
-      .single();
-
-    // Live DB currently checks payment_method IN ('cash', 'qr').
-    if (orderError?.code === "23514" && storedPaymentMethod === "razorpay") {
-      console.warn(
-        'orders.payment_method check rejected "razorpay". Saving as "qr" until the Razorpay constraint migration is applied.',
-      );
-
-      ({ data: order, error: orderError } = await supabaseAdmin
-        .from("orders")
-        .insert({
-          ...orderPayload,
-          payment_method: "qr",
-        })
-        .select()
-        .single());
-    }
-
-    if (orderError || !order) {
-      console.error("Order creation error:", orderError);
-
-      return NextResponse.json(
-        { error: "Unable to create order." },
-        { status: 500 },
-      );
-    }
-
-    const orderItems = pricedItems.map((item) => {
-      const customization = getCartItemCustomization({
-        title: item.title,
-        selected_protein: item.selected_protein,
-        selected_size: item.selected_size,
+      const confirmed = await confirmRestaurantPayment(getSupabaseAdminClient(), {
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
       });
-      const proteinDetails = [
-        customization.protein,
-        customization.toppings ? `Toppings: ${customization.toppings}` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ");
 
-      return {
-        order_id: order.id,
-        menu_item_id: item.menu_item_id,
-        item_name: customization.title,
-        selected_protein:
-          proteinDetails ||
-          (decodeDessertSelection(item.selected_protein) ||
-          decodeSoupSelection(item.selected_protein)
-            ? null
-            : item.selected_protein),
-        base_price: Number(item.base_price ?? 0),
-        protein_price: Number(item.protein_price ?? 0),
-        unit_price: Number(item.price),
-        quantity: Number(item.quantity),
-      };
-    });
-
-    const { error: orderItemsError } = await supabaseAdmin
-      .from("order_items")
-      .insert(orderItems);
-
-    if (orderItemsError) {
-      console.error("Order items error:", orderItemsError);
-
-      await supabaseAdmin.from("orders").delete().eq("id", order.id);
-
-      return NextResponse.json(
-        {
-          error:
-            "Unable to save order items. Please try again or contact support.",
-        },
-        { status: 500 },
-      );
+      return NextResponse.json({
+        success: true,
+        orderId: confirmed.orderId,
+        total: confirmed.total,
+        message: "Order placed successfully.",
+      });
     }
 
-    console.log(`Order ${order.id} saved successfully`);
+    const prepared = await prepareCheckoutOrder(body);
 
-    await supabaseAdmin.from("CartItems").delete().eq("session_id", sessionId);
-
-    return NextResponse.json({
-      success: true,
-      orderId: order.id,
-      total,
-      message: "Order placed successfully.",
-    });
+    return NextResponse.json(prepared);
   } catch (error) {
-    console.error("Place order error:", error);
-
-    return NextResponse.json(
-      { error: "Something went wrong while placing your order." },
-      { status: 500 },
-    );
+    return errorResponse(error);
   }
 }
