@@ -16,7 +16,9 @@ export const CUISINE_SLUG_TO_DB: Record<MenuCuisineSlug, string> = {
 export function cuisineSlugFromNavCategory(
   categoryId: string,
 ): MenuCuisineSlug | null {
-  if (categoryId === "desserts" || categoryId === "soups") return "pan-asian";
+  if (categoryId === "desserts" || categoryId === "soups" || categoryId === "mala") {
+    return "pan-asian";
+  }
 
   if (
     categoryId === "mexican" ||

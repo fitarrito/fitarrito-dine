@@ -131,7 +131,9 @@ export function getCartItemCustomization(item: {
   title: string;
   selected_protein?: string | null;
   selected_size?: string | null;
+  item_format?: string | null;
 }) {
+  const format = item.item_format?.trim() || null;
   const soupsBowls = decodeSoupsBowlsSelection(item.selected_protein);
 
   if (soupsBowls) {
@@ -139,6 +141,7 @@ export function getCartItemCustomization(item: {
       title: item.title,
       protein: formatSoupsBowlsChoice(soupsBowls),
       toppings: null as string | null,
+      format,
     };
   }
 
@@ -150,6 +153,7 @@ export function getCartItemCustomization(item: {
       title: item.selected_size ? `${item.title} (${item.selected_size})` : item.title,
       protein: null,
       toppings: null as string | null,
+      format,
     };
   }
 
@@ -160,6 +164,7 @@ export function getCartItemCustomization(item: {
       title: item.title,
       protein: asianStartersGravy.category === "Fixed" ? null : asianStartersGravy.category,
       toppings: null as string | null,
+      format,
     };
   }
 
@@ -170,6 +175,7 @@ export function getCartItemCustomization(item: {
       title: item.title,
       protein: `${panAsian.category}: ${panAsian.ingredients.join(", ")}`,
       toppings: null as string | null,
+      format,
     };
   }
 
@@ -182,6 +188,7 @@ export function getCartItemCustomization(item: {
         : item.title,
       protein: isHiddenCartProtein(item.selected_protein) ? null : (item.selected_protein ?? null),
       toppings: null as string | null,
+      format,
     };
   }
 
@@ -191,5 +198,6 @@ export function getCartItemCustomization(item: {
       : salad.saladType,
     protein: salad.protein,
     toppings: salad.toppings.length > 0 ? salad.toppings.join(", ") : null,
+    format,
   };
 }

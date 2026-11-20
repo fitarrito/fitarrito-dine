@@ -10,11 +10,13 @@ import { useAppDispatch } from "@lib/hooks";
 import { calculateMenuItemPricing, getAvailableProteinVariants } from "@lib/menuPricing";
 import { resolveMenuItemImageUrl, resolveProteinImageUrl } from "@lib/menuImages";
 import { quoteSizePrice } from "@lib/mexicanMiniOffer";
+import { formatChoicePrompt, readFormatOptions } from "@lib/menuFormat";
 import { FIXED_MENU_SELECTION } from "@lib/menuVisibility";
 import { orderingActionsPaused, useOnlineOrdering } from "@lib/useOnlineOrdering";
 import type { menuItem } from "@/types/types";
 import styles from "./SoupsMenu.module.css";
 import proteinStyles from "./AsianStartersGravyMenu.module.css";
+import baseStyles from "./PanAsianMenu.module.css";
 
 function formatRupee(amount: number) {
   return `₹${Math.round(amount)}`;
@@ -45,12 +47,19 @@ export default function VariantMenuCard({
     () => (mode === "protein" ? getAvailableProteinVariants(item, selectedSizeName) : []),
     [item, mode, selectedSizeName],
   );
+  const formatOptions = useMemo(() => readFormatOptions(item.formatOptions), [item.formatOptions]);
+  const requiresFormatChoice = formatOptions.length > 1;
+  const [format, setFormat] = useState<string | null>(null);
   const [selectedProteinName, setSelectedProteinName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const imageUrl = resolveMenuItemImageUrl(item);
   const hasImage = Boolean(item.imageUrl) || imageUrl !== "/fallback-image.jpg";
+  const selectedFormat = requiresFormatChoice
+    ? formatOptions.find((option) => option.toLowerCase() === format?.toLowerCase()) ?? null
+    : formatOptions[0] ?? null;
+  const needsFormat = !orderingPaused && requiresFormatChoice && !selectedFormat;
   const needsProtein = mode === "protein" && proteins.length > 0 && !selectedProteinName;
   const pricing = calculateMenuItemPricing(
     item,
@@ -73,6 +82,11 @@ export default function VariantMenuCard({
 
     if (sizes.length > 0 && !selectedSizeName) {
       setActionError(portionSizes ? "Please select a size." : "Please select an option.");
+      return;
+    }
+
+    if (needsFormat) {
+      setActionError(formatChoicePrompt(formatOptions));
       return;
     }
 
@@ -99,6 +113,7 @@ export default function VariantMenuCard({
                 ? FIXED_MENU_SELECTION
                 : selectedProteinName,
           selectedSize: sizes.length > 0 ? selectedSizeName : undefined,
+          itemFormat: selectedFormat,
           quantity,
         }),
       );
@@ -136,6 +151,31 @@ export default function VariantMenuCard({
         </p>
         <h3 className={styles.title}>{item.title}</h3>
         {item.description ? <p className={styles.description}>{item.description}</p> : null}
+        {requiresFormatChoice ? (
+          <div className={baseStyles.baseChoice}>
+            <p className={baseStyles.baseLabel}>Choose your base</p>
+            <div className={baseStyles.baseOptions} role="group" aria-label="Choose your base">
+              {formatOptions.map((option) => {
+                const active = selectedFormat === option;
+
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    className={`${baseStyles.baseOption} ${active ? baseStyles.baseOptionActive : ""}`}
+                    onClick={() => {
+                      setFormat(option);
+                      setActionError(null);
+                    }}
+                    aria-pressed={active}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
         {sizes.length > 0 ? (
           <div className={proteinStyles.proteins} role="group" aria-label={portionSizes ? "Size" : "Option"}>
             {sizes.map((size) => {
@@ -216,11 +256,15 @@ export default function VariantMenuCard({
           <button
             type="button"
             className={`${styles.addButton} ${
-              orderingPaused ? styles.addButtonClosed : needsProtein ? proteinStyles.addButtonInactive : ""
+              orderingPaused
+                ? styles.addButtonClosed
+                : needsFormat || needsProtein
+                  ? proteinStyles.addButtonInactive
+                  : ""
             }`}
             onClick={() => void handleAddToCart()}
             disabled={orderingPaused || isAdding}
-            aria-disabled={orderingPaused || isAdding || !canAdd}
+            aria-disabled={orderingPaused || isAdding || needsFormat || !canAdd}
             aria-busy={isAdding}
           >
             {isAdding ? (
@@ -232,9 +276,11 @@ export default function VariantMenuCard({
               ? "Ordering Closed"
               : isAdding
                 ? "Adding..."
-                : needsProtein
-                  ? "Select protein"
-                  : "Add to Cart"}
+                : needsFormat
+                  ? "Choose your base"
+                  : needsProtein
+                    ? "Select protein"
+                    : "Add to Cart"}
           </button>
         </div>
         {actionError ? <p className={styles.actionError}>{actionError}</p> : null}

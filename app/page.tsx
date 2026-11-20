@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isStaffHostHeaderList } from "@lib/staffHost";
+import OrderTypeScreen from "./components/OrderTypeScreen";
 
 export const dynamic = "force-dynamic";
 
@@ -16,5 +17,5 @@ export default async function Home() {
     redirect("/staff/dashboard");
   }
 
-  redirect("/menu?category=mexican");
+  return <OrderTypeScreen />;
 }

@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { isMalaCategoryName } from "@lib/mala";
 import styles from "./MenuCategoryNav.module.css";
 
 export type DineInCategory = {
@@ -28,6 +30,11 @@ export const DINE_IN_CATEGORIES: DineInCategory[] = [
     imageUrl: "/images/pan-asian-bowl.png",
   },
   {
+    id: "mala",
+    label: "Mala",
+    imageUrl: "/images/mala-nav-icon.svg",
+  },
+  {
     id: "asian-starters-gravy",
     label: "Asian Starters",
     imageUrl: "/images/asian-starters-platter.png",
@@ -40,7 +47,7 @@ export const DINE_IN_CATEGORIES: DineInCategory[] = [
   {
     id: "beverages",
     label: "Beverages",
-    imageUrl: "/images/beverages-nav-icon.png",
+    imageUrl: "/images/beverages-nav-icon.svg",
   },
   {
     id: "fitarrito-house",
@@ -68,10 +75,42 @@ export default function MenuCategoryNav({
   activeCategory = DEFAULT_MENU_CATEGORY,
   labelOverrides,
 }: MenuCategoryNavProps) {
+  const [showMala, setShowMala] = useState(activeCategory === "mala");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/category?cuisine=pan-asian")
+      .then(async (response) => {
+        if (!response.ok) return [];
+
+        return response.json();
+      })
+      .then((categories) => {
+        if (cancelled || !Array.isArray(categories)) return;
+
+        setShowMala(
+          categories.some((category) => isMalaCategoryName(category?.name)),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setShowMala(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const categories = VISIBLE_DINE_IN_CATEGORIES.filter(
+    (category) =>
+      category.id !== "mala" || showMala || activeCategory === "mala",
+  );
+
   return (
     <nav className={styles.nav} aria-label="Dine-in categories">
       <div className={styles.subRow}>
-        {VISIBLE_DINE_IN_CATEGORIES.map((category) => {
+        {categories.map((category) => {
           const active = activeCategory === category.id;
           const wideIcon = category.id !== "fitarrito-house";
           const label = labelOverrides?.[category.id] || category.label;

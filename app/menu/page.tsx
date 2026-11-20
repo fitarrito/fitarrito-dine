@@ -19,6 +19,7 @@ import OnDemandOrderingBanner from "@/components/OnDemandOrderingBanner";
 import AsianStartersGravyMenu from "@/components/AsianStartersGravyMenu";
 import BeveragesMenu from "@/components/BeveragesMenu";
 import DessertsMenu from "@/components/DessertsMenu";
+import MalaMenu from "@/components/MalaMenu";
 import PanAsianMenu from "@/components/PanAsianMenu";
 import SoupsMenu from "@/components/SoupsMenu";
 import FitarritoHouseMenu from "@/components/FitarritoHouseMenu";
@@ -79,6 +80,8 @@ function MenuPageContent() {
     activeSection === "dine-in" && activeMenuCategory === "mexican";
   const showPanAsianMenu =
     activeSection === "dine-in" && activeMenuCategory === "pan-asian";
+  const showMalaMenu =
+    activeSection === "dine-in" && activeMenuCategory === "mala";
   const showAsianStartersGravyMenu =
     activeSection === "dine-in" && activeMenuCategory === "asian-starters-gravy";
   const showDessertsMenu =
@@ -94,6 +97,7 @@ function MenuPageContent() {
     (activeSection === "dine-in" &&
       activeMenuCategory !== "mexican" &&
       activeMenuCategory !== "pan-asian" &&
+      activeMenuCategory !== "mala" &&
       activeMenuCategory !== "asian-starters-gravy" &&
       activeMenuCategory !== "desserts" &&
       activeMenuCategory !== "soups" &&
@@ -304,6 +308,16 @@ function MenuPageContent() {
       );
     }
 
+    if (showMalaMenu) {
+      return (
+        <MalaMenu
+          items={visibleMenuItems}
+          categories={visibleFoodCategories}
+          onAddedToCart={() => setIsDrawerOpen(true)}
+        />
+      );
+    }
+
     if (showAsianStartersGravyMenu) {
       return (
         <AsianStartersGravyMenu
@@ -414,7 +428,9 @@ function MenuPageContent() {
                   ? "Freshly made burritos, tacos, bowls & more!"
                   : showDessertsMenu
                     ? "House desserts, made to order."
-                    : showSoupsMenu
+                    : showMalaMenu
+                      ? "Numbing, spicy mala bowls."
+                      : showSoupsMenu
                       ? "Fresh soups and noodle bowls."
                       : showBeveragesMenu
                         ? "Hot and iced teas."

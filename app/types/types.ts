@@ -49,6 +49,7 @@ export interface menuItem {
   panAsianIngredients?: import("@lib/panAsianOrder").PanAsianIngredient[];
   asianStartersGravyPrices?: import("@lib/asianStartersGravyOrder").AsianStartersGravyPriceOption[];
   soupsBowlsPrices?: import("@lib/soupsBowlsOrder").SoupsBowlsPriceOption[];
+  formatOptions?: string[] | null;
 }
 
 export interface addOnsItem {

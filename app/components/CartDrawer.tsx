@@ -111,7 +111,7 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
               const customization = getCartItemCustomization(item);
               const cartItemId =
                 item.id ||
-                `${item.title}-${item.selected_protein || "default"}-${
+                `${item.title}-${item.item_format || "base"}-${item.selected_protein || "default"}-${
                   item.selected_size || "regular"
                 }`;
 
@@ -130,6 +130,11 @@ const DrawerComponent = ({ isOpen, setIsOpen }: DrawerProps) => {
 
                     <div className={styles.itemDetails}>
                       <p className={styles.itemTitle}>{customization.title}</p>
+                      {customization.format ? (
+                        <p className={styles.itemSubtitle}>
+                          Format: {customization.format}
+                        </p>
+                      ) : null}
                       {customization.protein ? (
                         <p className={styles.itemSubtitle}>
                           {customization.protein}

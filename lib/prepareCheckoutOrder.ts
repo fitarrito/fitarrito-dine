@@ -13,6 +13,7 @@ import {
   isValidIndianMobile,
   normalizeIndianPhone,
 } from "@lib/normalizePhone";
+import { readFormatOptions, resolveItemFormat } from "@lib/menuFormat";
 import { unavailableCartMessage } from "@lib/menuVisibility";
 import { repriceCartRows } from "@lib/pricedCart";
 import {
@@ -87,12 +88,36 @@ export async function prepareCheckoutOrder(body: Record<string, unknown>) {
     (sum, item) => sum + Number(item.price) * Number(item.quantity),
     0,
   );
+  const menuIds = [...new Set(pricedItems.map((item) => String(item.menu_item_id)))];
+  const { data: formatRows, error: formatError } = await supabase
+    .from("MenuItem")
+    .select("id, formatOptions")
+    .in("id", menuIds);
+
+  if (formatError) {
+    console.error(formatError);
+    throw new RestaurantOrderError(500, "Unable to price this menu item.");
+  }
+
+  const formatOptionsById = new Map(
+    (formatRows ?? []).map((row) => [String(row.id), readFormatOptions(row.formatOptions)]),
+  );
   const items = pricedItems.map((item) => {
+    const resolvedFormat = resolveItemFormat(
+      formatOptionsById.get(String(item.menu_item_id)) ?? [],
+      item.item_format,
+    );
+
+    if ("error" in resolvedFormat) {
+      throw new RestaurantOrderError(400, resolvedFormat.error);
+    }
+
     const soupsBowls = decodeSoupsBowlsSelection(item.selected_protein);
     const customization = getCartItemCustomization({
       title: item.title,
       selected_protein: item.selected_protein,
       selected_size: item.selected_size,
+      item_format: resolvedFormat.itemFormat,
     });
     const proteinDetails = [
       customization.protein,
@@ -111,6 +136,7 @@ export async function prepareCheckoutOrder(body: Record<string, unknown>) {
       menuItemId: String(item.menu_item_id),
       itemName: customization.title,
       selectedProtein: soupsBowls ? (item.selected_protein ?? selectedProtein) : selectedProtein,
+      itemFormat: resolvedFormat.itemFormat,
       servingType: soupsBowls?.serving ?? null,
       selectedIngredient: soupsBowls?.ingredient ?? null,
       basePrice: Number(item.base_price ?? 0),

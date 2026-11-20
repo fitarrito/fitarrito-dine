@@ -25,6 +25,7 @@ type OrderItem = {
   id: string | number;
   name: string;
   protein?: string | null;
+  format?: string | null;
   unitPrice: number;
   quantity: number;
   imageUrl?: string | null;
@@ -378,6 +379,7 @@ function OrderTrackingContent() {
                 )}
                 <div>
                   <strong>{item.name}</strong>
+                  {item.format ? <span>Format: {item.format}</span> : null}
                   {item.protein ? <span>{item.protein}</span> : null}
                 </div>
                 <b>× {item.quantity}</b>

@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { FaSyncAlt, FaVolumeMute, FaVolumeUp, FaWhatsapp } from "react-icons/fa";
+import { FaSyncAlt, FaWhatsapp } from "react-icons/fa";
+import { TbCalendarTime } from "react-icons/tb";
 import logo from "../../../public/images/logo.svg";
 import emptyOrders from "../../../public/images/staff-empty-orders.png";
 import { fetchJson } from "@lib/apiFetch";
 import { formatRupees } from "@lib/razorpayFee";
-import { pendingAlertIds } from "@lib/staffOrderAlerts";
+import { formatStaffOrderPlacedAt, pendingAlertIds } from "@lib/staffOrderAlerts";
 import {
   PREPARATION_ESTIMATES,
   type PreparationMinutes,
@@ -20,6 +21,7 @@ type OrderItem = {
   id: string | number;
   name: string;
   protein?: string | null;
+  format?: string | null;
   quantity: number;
 };
 
@@ -52,27 +54,66 @@ type Notification = {
 type StatusFilter = "active" | "pending" | "confirmed" | "preparing";
 type LiveState = "connecting" | "live" | "reconnecting";
 
-const SOUND_ALERTS_KEY = "fitarrito_staff_sound_alerts";
-const SOUND_REPEAT_MS = 3000;
+const CHIME_CYCLE_SECONDS = 0.9;
+const SOUND_REPEAT_MS = 1800;
+const VIBRATION_PATTERN = [500, 200, 500, 200, 800];
 
-function playOrderChime(context: AudioContext, output: AudioNode) {
-  const start = context.currentTime;
+function playOrderChime(
+  context: AudioContext,
+  output: AudioNode,
+  start = context.currentTime,
+) {
+  const strikes = [
+    { offset: 0, frequency: 784 },
+    { offset: 0.18, frequency: 1046 },
+  ];
 
-  [880, 1174].forEach((frequency, index) => {
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const noteStart = start + index * 0.16;
+  for (const strike of strikes) {
+    const partials = [
+      { ratio: 1, level: 0.48 },
+      { ratio: 2.4, level: 0.18 },
+      { ratio: 4.1, level: 0.08 },
+      { ratio: 6.8, level: 0.04 },
+    ];
 
-    oscillator.type = "sine";
-    oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(0.0001, noteStart);
-    gain.gain.exponentialRampToValueAtTime(0.18, noteStart + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + 0.28);
-    oscillator.connect(gain);
-    gain.connect(output);
-    oscillator.start(noteStart);
-    oscillator.stop(noteStart + 0.3);
-  });
+    for (const partial of partials) {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const noteStart = start + strike.offset;
+
+      oscillator.type = "sine";
+      oscillator.frequency.value = strike.frequency * partial.ratio;
+      gain.gain.setValueAtTime(0.0001, noteStart);
+      gain.gain.exponentialRampToValueAtTime(partial.level, noteStart + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + 0.72);
+      oscillator.connect(gain);
+      gain.connect(output);
+      oscillator.start(noteStart);
+      oscillator.stop(noteStart + 0.75);
+    }
+  }
+}
+
+function vibrateForOrder() {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") {
+    return false;
+  }
+
+  try {
+    return navigator.vibrate(VIBRATION_PATTERN) !== false;
+  } catch {
+    return false;
+  }
+}
+
+function stopVibration() {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+
+  try {
+    navigator.vibrate(0);
+  } catch {
+    // Vibration is optional and can be unavailable in desktop browsers.
+  }
 }
 
 function notifyNewOrder(order: StaffOrder) {
@@ -107,12 +148,15 @@ function preferStaffOrder(existing: StaffOrder, incoming: StaffOrder) {
   const incomingRank = statusRank(incoming.status);
   const existingRank = statusRank(existing.status);
 
+  const createdAt = existing.createdAt || incoming.createdAt || null;
+
   if (incomingRank < existingRank) {
     return {
       ...incoming,
       status: existing.status,
       preparationLabel: existing.preparationLabel,
       updatedAt: existing.updatedAt,
+      createdAt,
       items,
     };
   }
@@ -121,10 +165,10 @@ function preferStaffOrder(existing: StaffOrder, incoming: StaffOrder) {
   const incomingTime = Date.parse(incoming.updatedAt ?? "") || 0;
 
   if (incomingRank === existingRank && incomingTime < existingTime) {
-    return { ...existing, items };
+    return { ...existing, createdAt, items };
   }
 
-  return { ...incoming, items };
+  return { ...incoming, createdAt, items };
 }
 
 function mergeStaffOrder(current: StaffOrder[], incoming: StaffOrder) {
@@ -183,8 +227,8 @@ export default function StaffDashboardPage() {
   const [notices, setNotices] = useState<Record<string, Notification>>({});
   const [liveState, setLiveState] = useState<LiveState>("connecting");
   const [baselineIds, setBaselineIds] = useState<Set<string> | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(false);
-  const [soundBlocked, setSoundBlocked] = useState(false);
+  const soundEnabled = true;
+  const vibrationEnabled = true;
   const audioRef = useRef<AudioContext | null>(null);
   const alarmOutputRef = useRef<GainNode | null>(null);
   const alarmTimerRef = useRef(0);
@@ -192,7 +236,6 @@ export default function StaffDashboardPage() {
   const ordersRef = useRef(orders);
   const baselineRef = useRef(baselineIds);
   const notifiedIds = useRef(new Set<string>());
-  const alertCountRef = useRef(0);
 
   ordersRef.current = orders;
   baselineRef.current = baselineIds;
@@ -201,6 +244,8 @@ export default function StaffDashboardPage() {
     alarmGenerationRef.current += 1;
     window.clearInterval(alarmTimerRef.current);
     alarmTimerRef.current = 0;
+
+    stopVibration();
 
     const output = alarmOutputRef.current;
     const context = audioRef.current;
@@ -254,17 +299,6 @@ export default function StaffDashboardPage() {
   }, [loadOrders]);
 
   useEffect(() => {
-    try {
-      if (sessionStorage.getItem(SOUND_ALERTS_KEY) === "1") {
-        setSoundEnabled(true);
-        setSoundBlocked(true);
-      }
-    } catch {
-      // Private browsing can block session storage.
-    }
-  }, []);
-
-  useEffect(() => {
     return () => {
       const context = audioRef.current;
       audioRef.current = null;
@@ -280,10 +314,8 @@ export default function StaffDashboardPage() {
 
   useEffect(() => {
     const alertCount = alertingKey ? alertingKey.split(",").filter(Boolean).length : 0;
-    const startNow = alertCount > alertCountRef.current;
-    alertCountRef.current = alertCount;
 
-    if (!soundEnabled || alertCount === 0) {
+    if (alertCount === 0 || (!soundEnabled && !vibrationEnabled)) {
       silenceAlarm();
       return;
     }
@@ -292,6 +324,13 @@ export default function StaffDashboardPage() {
 
     const ring = async () => {
       const generation = alarmGenerationRef.current;
+
+      if (stopped || generation !== alarmGenerationRef.current) return;
+
+      if (vibrationEnabled) vibrateForOrder();
+
+      if (!soundEnabled) return;
+
       const context = audioRef.current;
 
       if (!context || stopped || generation !== alarmGenerationRef.current) return;
@@ -300,7 +339,6 @@ export default function StaffDashboardPage() {
         try {
           await context.resume();
         } catch {
-          if (!stopped) setSoundBlocked(true);
           return;
         }
       }
@@ -310,7 +348,6 @@ export default function StaffDashboardPage() {
         generation !== alarmGenerationRef.current ||
         context.state !== "running"
       ) {
-        if (!stopped && context.state !== "running") setSoundBlocked(true);
         return;
       }
 
@@ -324,34 +361,49 @@ export default function StaffDashboardPage() {
 
       output.gain.cancelScheduledValues(context.currentTime);
       output.gain.setValueAtTime(1, context.currentTime);
-      setSoundBlocked(false);
-      playOrderChime(context, output);
+      const start = context.currentTime + 0.02;
+      const cycles = Math.round(SOUND_REPEAT_MS / 1000 / CHIME_CYCLE_SECONDS);
+
+      for (let index = 0; index < cycles; index += 1) {
+        playOrderChime(context, output, start + index * CHIME_CYCLE_SECONDS);
+      }
     };
 
     alarmTimerRef.current = window.setInterval(() => {
       void ring();
     }, SOUND_REPEAT_MS);
 
-    if (startNow) void ring();
+    void ring();
 
     return () => {
       stopped = true;
       silenceAlarm();
     };
-  }, [alertingKey, silenceAlarm, soundEnabled]);
+  }, [alertingKey, silenceAlarm, soundEnabled, vibrationEnabled]);
 
   useEffect(() => {
     if (!alertingKey) return;
 
-    for (const id of alertingKey.split(",")) {
-      if (notifiedIds.current.has(id)) continue;
+    const announceHiddenOrders = () => {
+      if (document.visibilityState !== "hidden") return;
 
-      notifiedIds.current.add(id);
-      const order = orders.find((item) => String(item.id) === id);
+      for (const id of alertingKey.split(",")) {
+        if (!id || notifiedIds.current.has(id)) continue;
 
-      if (order) notifyNewOrder(order);
-    }
-  }, [alertingKey, orders]);
+        notifiedIds.current.add(id);
+        const order = ordersRef.current.find((item) => String(item.id) === id);
+
+        if (order) notifyNewOrder(order);
+      }
+    };
+
+    announceHiddenOrders();
+    document.addEventListener("visibilitychange", announceHiddenOrders);
+
+    return () => {
+      document.removeEventListener("visibilitychange", announceHiddenOrders);
+    };
+  }, [alertingKey]);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -443,6 +495,7 @@ export default function StaffDashboardPage() {
   };
 
   const signOut = async () => {
+    silenceAlarm();
     await fetchJson("/api/staff/session", { method: "DELETE" });
     setAuthenticated(false);
     setOrders([]);
@@ -450,59 +503,78 @@ export default function StaffDashboardPage() {
     notifiedIds.current.clear();
   };
 
-  const toggleSound = async () => {
-    if (soundEnabled && audioRef.current?.state === "running") {
-      try {
-        sessionStorage.setItem(SOUND_ALERTS_KEY, "0");
-      } catch {
-        // The in-memory choice still turns the alert off.
-      }
+  const playChime = (context: AudioContext) => {
+    let output = alarmOutputRef.current;
 
-      setSoundEnabled(false);
-      setSoundBlocked(false);
-      return;
+    if (!output || output.context !== context) {
+      output = context.createGain();
+      output.connect(context.destination);
+      alarmOutputRef.current = output;
     }
 
+    output.gain.cancelScheduledValues(context.currentTime);
+    output.gain.setValueAtTime(1, context.currentTime);
+    playOrderChime(context, output);
+  };
+
+  const unlockAudio = useCallback(async () => {
     const context = audioRef.current ?? new AudioContext();
     audioRef.current = context;
 
     try {
       await context.resume();
     } catch {
-      setSoundBlocked(true);
+      return null;
     }
 
-    const unlocked = context.state === "running";
+    if (context.state !== "running") return null;
 
-    try {
-      sessionStorage.setItem(SOUND_ALERTS_KEY, "1");
-    } catch {
-      // Sound can still play for this page view.
-    }
+    return context;
+  }, []);
 
-    setSoundEnabled(true);
-    setSoundBlocked(!unlocked);
+  useEffect(() => {
+    let cancelled = false;
+    let removeGesture = () => {};
 
-    if (unlocked && alertingIds.length > 0) {
-      let output = alarmOutputRef.current;
+    const resumeSavedSound = async () => {
+      const context = await unlockAudio();
 
-      if (!output || output.context !== context) {
-        output = context.createGain();
-        output.connect(context.destination);
-        alarmOutputRef.current = output;
+      if (cancelled || context) {
+        removeGesture();
+        return;
       }
 
-      output.gain.setValueAtTime(1, context.currentTime);
-      playOrderChime(context, output);
-    }
+      const onGesture = () => {
+        removeGesture();
+        void unlockAudio();
 
-    if (
-      unlocked &&
-      typeof Notification !== "undefined" &&
-      Notification.permission === "default"
-    ) {
-      void Notification.requestPermission();
-    }
+        if (typeof Notification !== "undefined" && Notification.permission === "default") {
+          void Notification.requestPermission().catch(() => {
+            // Notification permission is optional. The page alert still works.
+          });
+        }
+      };
+
+      window.addEventListener("pointerdown", onGesture, true);
+      window.addEventListener("keydown", onGesture, true);
+      removeGesture = () => {
+        window.removeEventListener("pointerdown", onGesture, true);
+        window.removeEventListener("keydown", onGesture, true);
+      };
+    };
+
+    void resumeSavedSound();
+
+    return () => {
+      cancelled = true;
+      removeGesture();
+    };
+  }, [unlockAudio]);
+
+  const testSound = async () => {
+    const context = await unlockAudio();
+
+    if (context) playChime(context);
   };
 
   const updateOrder = async (
@@ -544,7 +616,7 @@ export default function StaffDashboardPage() {
       if (action === "confirm" && savedStatus !== "pending") {
         nextBaseline.add(String(order.id));
         setBaselineIds(nextBaseline);
-        silenceAlarm();
+        notifiedIds.current.add(String(order.id));
       }
 
       const nextOrders = mergeStaffOrder(ordersRef.current, updatedOrder);
@@ -648,17 +720,8 @@ export default function StaffDashboardPage() {
           >
             <FaSyncAlt aria-hidden /> Refresh orders
           </button>
-          <button
-            className={soundEnabled && !soundBlocked ? styles.soundOn : styles.soundOff}
-            type="button"
-            onClick={() => void toggleSound()}
-          >
-            {soundEnabled && !soundBlocked ? (
-              <FaVolumeUp aria-hidden />
-            ) : (
-              <FaVolumeMute aria-hidden />
-            )}
-            {soundEnabled && !soundBlocked ? "Sound alerts on" : "Enable sound alerts"}
+          <button className={styles.soundOff} type="button" onClick={() => void testSound()}>
+            Test sound
           </button>
           <button className={styles.logout} type="button" onClick={() => void signOut()}>
             Sign out
@@ -681,14 +744,6 @@ export default function StaffDashboardPage() {
             </button>
           ) : null}
         </div>
-      ) : null}
-
-      {soundBlocked || (!soundEnabled && alertingIds.length > 0) ? (
-        <p className={styles.soundReminder}>
-          {soundEnabled
-            ? "Sound alerts are saved for this visit, but the browser is blocking audio. Tap Enable sound alerts."
-            : "Tap Enable sound alerts so new orders can play a sound. Browsers block audio until you do."}
-        </p>
       ) : null}
 
       <div className={styles.filters}>
@@ -756,10 +811,16 @@ export default function StaffDashboardPage() {
                 <header className={styles.orderHeader}>
                   <div>
                     <h2>Order #{order.id}</h2>
+                    <p className={styles.placedAt}>
+                      <TbCalendarTime aria-hidden />
+                      <span>
+                        {formatStaffOrderPlacedAt(order.createdAt) ?? "Time unavailable"}
+                      </span>
+                    </p>
                     <p className={styles.meta}>{order.customerName}</p>
                   </div>
                   <span className={alerting ? styles.newBadge : styles.badge}>
-                    {alerting ? "New" : statusLabel(order.status)}
+                    {alerting ? "NEW ORDER" : statusLabel(order.status)}
                   </span>
                 </header>
 
@@ -813,6 +874,7 @@ export default function StaffDashboardPage() {
                   <div className={styles.item} key={item.id}>
                     <div>
                       <strong>{item.name}</strong>
+                      {item.format ? <span>Format: {item.format}</span> : null}
                       {item.protein ? <span>{item.protein}</span> : null}
                     </div>
                     <strong>Qty {item.quantity}</strong>

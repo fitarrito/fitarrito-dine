@@ -27,6 +27,7 @@ export type ReservedOrderItem = {
   menuItemId: string;
   itemName: string;
   selectedProtein: string | null;
+  itemFormat?: string | null;
   servingType?: string | null;
   selectedIngredient?: string | null;
   basePrice: number;
@@ -307,6 +308,7 @@ async function replaceOrderItems(
     menu_item_id: item.menuItemId,
     item_name: item.itemName,
     selected_protein: item.selectedProtein,
+    item_format: item.itemFormat ?? null,
     serving_type: item.servingType ?? null,
     selected_ingredient: item.selectedIngredient ?? null,
     base_price: item.basePrice,

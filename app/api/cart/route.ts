@@ -14,6 +14,7 @@ import { isPanAsianCuisine } from "@lib/panAsianOrder";
 import { isSoupsCategoryName } from "@lib/soups";
 import { loadSoupsBowlsCatalog } from "@lib/soupsBowlsCatalog";
 import { quoteOrderItem } from "@lib/orderQuote";
+import { readFormatOptions, resolveItemFormat } from "@lib/menuFormat";
 import { isBlockedMenuTitle, isMenuItemAvailable, unavailableCartMessage } from "@lib/menuVisibility";
 import type { menuItem } from "@/types/types";
 import { onlineOrderingBlock } from "@lib/storeOrdering";
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
     const menuItemId = body.menuItemId ?? body.menu_item_id;
     const selectedProtein = body.selectedProtein ?? body.selected_protein;
     const selectedSize = body.selectedSize ?? body.selected_size ?? null;
+    const submittedFormat = body.itemFormat ?? body.item_format;
     const quantity = body.quantity ?? 1;
 
     if (!sessionId) {
@@ -101,7 +103,7 @@ export async function POST(request: Request) {
       supabaseAdmin
         .from("MenuItem")
         .select(
-          "id, title, price, imageUrl, proteinVariants, sizeVariants, order_type, cuisine, categoryId, is_available",
+          "id, title, price, imageUrl, proteinVariants, sizeVariants, order_type, cuisine, categoryId, is_available, formatOptions",
         )
         .eq("id", menuItemId)
         .single(),
@@ -207,35 +209,57 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: quote.error }, { status: 400 });
     }
 
+    const resolvedFormat = resolveItemFormat(
+      readFormatOptions(menuItemRow.formatOptions),
+      submittedFormat,
+    );
+
+    if ("error" in resolvedFormat) {
+      return NextResponse.json({ error: resolvedFormat.error }, { status: 400 });
+    }
+
+    const itemFormat = resolvedFormat.itemFormat;
     const pricing = quote;
     const storedProtein = pricing.selection;
     const { base_price: basePrice, protein_price: proteinPrice, price: unitPrice } =
       pricing;
 
-    let existingQuery = supabaseAdmin
-      .from("CartItems")
-      .select("id, quantity")
-      .eq("session_id", sessionId)
-      .eq("menu_item_id", String(menuItemRow.id))
-      .eq("selected_protein", storedProtein);
+    const baseMatch = () => {
+      let query = supabaseAdmin
+        .from("CartItems")
+        .select("id, quantity")
+        .eq("session_id", sessionId)
+        .eq("menu_item_id", String(menuItemRow.id))
+        .eq("selected_protein", storedProtein);
 
-    if (selectedSize) {
-      existingQuery = existingQuery.eq("selected_size", selectedSize);
+      if (selectedSize) query = query.eq("selected_size", selectedSize);
+
+      return query;
+    };
+    const matchFormat = (
+      query: ReturnType<typeof baseMatch>,
+      column: "item_format" | "selected_salad",
+    ) =>
+      itemFormat ? query.eq(column, itemFormat) : query.is(column, null);
+
+    let formatColumn: "item_format" | "selected_salad" = "item_format";
+    let existingResult = await matchFormat(baseMatch(), "item_format").maybeSingle();
+
+    if (existingResult.error && /item_format/i.test(existingResult.error.message ?? "")) {
+      formatColumn = "selected_salad";
+      existingResult = await matchFormat(baseMatch(), "selected_salad").maybeSingle();
     }
 
-    const { data: existingItem, error: existingError } = await existingQuery.maybeSingle();
+    const existingItem = existingResult.data;
+    const existingError = existingResult.error;
 
-    if (existingError) {
-      const missingSizeColumn = /selected_size/i.test(existingError.message ?? "");
+    if (existingError && !/selected_size/i.test(existingError.message ?? "")) {
+      console.error("Existing cart lookup error:", existingError);
 
-      if (!missingSizeColumn) {
-        console.error("Existing cart lookup error:", existingError);
-
-        return NextResponse.json(
-          { error: "Unable to check cart." },
-          { status: 500 },
-        );
-      }
+      return NextResponse.json(
+        { error: "Unable to check cart." },
+        { status: 500 },
+      );
     }
 
     if (existingItem) {
@@ -248,6 +272,9 @@ export async function POST(request: Request) {
           title: menuItemRow.title,
           image_url: menuItemRow.imageUrl,
           selected_size: selectedSize,
+          ...(formatColumn === "item_format"
+            ? { item_format: itemFormat }
+            : { selected_salad: itemFormat }),
           base_price: basePrice,
           protein_price: proteinPrice,
           price: unitPrice,
@@ -281,6 +308,9 @@ export async function POST(request: Request) {
         image_url: menuItemRow.imageUrl,
         selected_protein: storedProtein,
         selected_size: selectedSize,
+        ...(formatColumn === "item_format"
+          ? { item_format: itemFormat }
+          : { selected_salad: itemFormat }),
         quantity,
         base_price: basePrice,
         protein_price: proteinPrice,
@@ -301,6 +331,9 @@ export async function POST(request: Request) {
             title: menuItemRow.title,
             image_url: menuItemRow.imageUrl,
             selected_protein: storedProtein,
+            ...(formatColumn === "item_format"
+              ? { item_format: itemFormat }
+              : { selected_salad: itemFormat }),
             quantity,
             base_price: basePrice,
             protein_price: proteinPrice,

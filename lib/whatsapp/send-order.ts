@@ -10,6 +10,7 @@ import {
 export type OrderWhatsAppItem = {
   item_name: string;
   selected_protein?: string | null;
+  item_format?: string | null;
   selected_size?: string | null;
   selected_toppings?: string | null;
   quantity: number;
@@ -64,6 +65,7 @@ export function formatOrderWhatsAppMessage(
               decodeSoupSelection(item.selected_protein)
             ? null
             : item.selected_protein,
+        item.item_format ? `Format: ${item.item_format}` : null,
         item.selected_size ? `Size: ${item.selected_size}` : null,
         item.selected_toppings ? `Toppings: ${item.selected_toppings}` : null,
       ]

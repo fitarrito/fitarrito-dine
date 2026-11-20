@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     const { data: items, error: itemsError } = await supabaseAdmin
       .from("order_items")
       .select(
-        "id, menu_item_id, item_name, selected_protein, unit_price, quantity, base_price, protein_price",
+        "id, menu_item_id, item_name, selected_protein, item_format, unit_price, quantity, base_price, protein_price",
       )
       .eq("order_id", orderId);
 
@@ -154,6 +154,7 @@ export async function POST(request: Request) {
       items: (items ?? []).map((item) => ({
         id: item.id,
         name: item.item_name,
+        format: item.item_format?.trim() || null,
         protein: (() => {
           const soupsBowls = decodeSoupsBowlsSelection(item.selected_protein);
 

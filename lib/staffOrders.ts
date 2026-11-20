@@ -40,6 +40,7 @@ const ORDER_COLUMNS = `
     id,
     item_name,
     selected_protein,
+    item_format,
     quantity
   )
 `;
@@ -48,6 +49,7 @@ type OrderItemRow = {
   id: number;
   item_name: string;
   selected_protein: string | null;
+  item_format?: string | null;
   quantity: number;
 };
 
@@ -97,6 +99,7 @@ export type StaffOrder = {
     id: number;
     name: string;
     protein: string | null;
+    format: string | null;
     quantity: number;
   }>;
 };
@@ -157,6 +160,7 @@ function mapOrder(order: OrderRow): StaffOrder {
     items: (order.order_items ?? []).map((item) => ({
       id: item.id,
       name: item.item_name,
+      format: item.item_format?.trim() || null,
       protein: (() => {
         const soupsBowls = decodeSoupsBowlsSelection(item.selected_protein);
 

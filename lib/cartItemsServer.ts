@@ -11,6 +11,8 @@ export type CartItemRecord = {
   image_url?: string | null;
   selected_protein?: string | null;
   selected_size?: string | null;
+  item_format?: string | null;
+  selected_salad?: string | null;
   quantity: number;
   price?: number | null;
   base_price?: number | null;

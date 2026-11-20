@@ -35,6 +35,7 @@ import {
   sortPanAsianIngredients,
   type PanAsianCategory,
 } from "@lib/panAsianOrder";
+import { readFormatOptions, resolveItemFormat } from "@lib/menuFormat";
 import { FIXED_MENU_SELECTION, isBlockedMenuTitle } from "@lib/menuVisibility";
 import { encodeSoupSelection, isSoupsCategoryName, quoteSoupSelection } from "@lib/soups";
 import {
@@ -64,6 +65,7 @@ export type WaiterDishGroup = Exclude<WaiterMenuGroupId, "all">;
 export type WaiterChoice = {
   selectedProtein: string;
   selectedSize?: string;
+  itemFormat?: string | null;
   price: number;
   summary: string;
 };
@@ -77,6 +79,7 @@ export type WaiterChoiceInput = {
   starterCategory?: AsianStartersGravyCategory | null;
   saladType?: string | null;
   toppings?: string[];
+  itemFormat?: string | null;
 };
 
 const GROUP_ORDER: WaiterDishGroup[] = [
@@ -351,6 +354,7 @@ export function waiterInputFromCart(input: {
   group: WaiterDishGroup;
   selectedProtein?: string | null;
   selectedSize?: string | null;
+  itemFormat?: string | null;
 }): WaiterChoiceInput {
   if (input.group === "soups") {
     const bowls = decodeSoupsBowlsSelection(input.selectedProtein);
@@ -376,6 +380,7 @@ export function waiterInputFromCart(input: {
       return {
         panCategory: decoded.category,
         ingredient: decoded.category === "Veg" ? decoded.ingredients[0] : null,
+        itemFormat: input.itemFormat,
       };
     }
   }
@@ -566,7 +571,19 @@ export function quoteWaiterChoice(
       ingredients: catalog,
     });
 
-    return selectionQuote(quote);
+    const quoted = selectionQuote(quote);
+
+    if ("error" in quoted) return quoted;
+
+    const format = resolveItemFormat(readFormatOptions(item.formatOptions), input.itemFormat);
+
+    if ("error" in format) return format;
+
+    return {
+      ...quoted,
+      itemFormat: format.itemFormat,
+      summary: [format.itemFormat, quoted.summary].filter(Boolean).join(" · "),
+    };
   }
 
   if (group === "asian-starters-gravy" && hasStarterCatalog(item) && (item.proteinVariants?.length ?? 0) === 0) {

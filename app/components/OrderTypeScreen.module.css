@@ -1,0 +1,260 @@
+.screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  color: #1f1f1f;
+  background:
+    linear-gradient(90deg, rgba(255, 246, 236, 0.78) 0%, rgba(255, 246, 236, 0.28) 34%, rgba(255, 246, 236, 0) 58%),
+    url("/images/order-type-feast.jpg") right center / cover no-repeat;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.4rem 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.mark {
+  display: grid;
+  width: 2.7rem;
+  height: 2.7rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.7rem;
+  background: var(--customTheme, #fc1e1e);
+  color: #fff;
+  font-size: 1.85rem;
+  line-height: 1;
+  box-shadow: 0 8px 16px rgba(252, 30, 30, 0.25);
+}
+
+.wordmark {
+  margin: 0;
+  color: var(--customTheme, #fc1e1e);
+  font-size: clamp(1.55rem, 2.4vw, 2.15rem);
+  letter-spacing: 0.04em;
+  line-height: 0.9;
+}
+
+.tagline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.28rem 0 0;
+  color: #b42323;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.tagline span {
+  width: 0.85rem;
+  height: 2px;
+  background: #b42323;
+}
+
+.cart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 4.4rem;
+  height: 2.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--customTheme, #fc1e1e);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(252, 30, 30, 0.28);
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: minmax(18rem, 36rem) minmax(18rem, 25rem);
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1rem, 4vw, 3rem);
+  width: min(1120px, 100%);
+  margin: auto;
+  padding: 1.5rem 1.25rem 2.5rem;
+}
+
+.intro {
+  position: relative;
+}
+
+.headline {
+  margin: 0;
+  color: #2a211c;
+  font-size: clamp(2.7rem, 4.2vw, 3.7rem);
+  font-weight: 400;
+  line-height: 0.95;
+}
+
+.headline span {
+  display: block;
+  white-space: nowrap;
+}
+
+.brush {
+  display: block;
+  width: min(16rem, 78%);
+  height: 0.55rem;
+  margin: 0.35rem 0 0.85rem 0.2rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--customTheme, #fc1e1e) 12%, #ff5a4a 78%, transparent);
+  transform: rotate(-2deg);
+}
+
+.cuisines {
+  margin: 0;
+  color: #6b625c;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.card {
+  width: min(100%, 25rem);
+  padding: 1.7rem 1.45rem 1.35rem;
+  border-radius: 1.7rem;
+  background: #fff;
+  box-shadow: 0 22px 50px rgba(80, 28, 18, 0.16);
+  text-align: center;
+}
+
+.cloche {
+  display: block;
+  width: 3.4rem;
+  margin: 0 auto 0.2rem;
+  color: var(--customTheme, #fc1e1e);
+}
+
+.cloche svg {
+  width: 100%;
+  height: auto;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.65rem;
+  line-height: 1.15;
+}
+
+.card p {
+  margin: 0.35rem 0 1.25rem;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 3.35rem;
+  border: 0;
+  border-radius: 0.85rem;
+  background: var(--customTheme, #fc1e1e);
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(252, 30, 30, 0.28);
+}
+
+.continue:hover {
+  filter: brightness(0.96);
+}
+
+@media (max-width: 800px) {
+  .screen {
+    background: url("/images/order-type-feast-portrait.jpg") center top / cover no-repeat;
+  }
+
+  .stage {
+    position: absolute;
+    inset: 50% 0 16%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    width: 100%;
+    margin: 0;
+    padding: 0 1rem;
+    text-align: center;
+  }
+
+  .headline {
+    font-size: clamp(2rem, 8vw, 2.45rem);
+  }
+
+  .brush {
+    margin-bottom: 0.45rem;
+  }
+
+  .card {
+    width: min(100%, 20rem);
+    padding: 0.7rem 0.9rem 0.65rem;
+  }
+
+  .cloche {
+    width: 2.2rem;
+    margin-bottom: 0;
+  }
+
+  .card h2 {
+    font-size: 1.2rem;
+  }
+
+  .card p {
+    margin-bottom: 0.5rem;
+    font-size: 0.86rem;
+  }
+
+  .continue {
+    min-height: 2.55rem;
+    font-size: 1rem;
+  }
+
+  .headline span {
+    white-space: normal;
+  }
+
+  .brush {
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .topBar {
+    padding-right: 0.85rem;
+    padding-left: 0.85rem;
+  }
+
+  .tagline {
+    letter-spacing: 0.08em;
+    font-size: 0.52rem;
+  }
+
+  .stage {
+    padding-top: 0;
+  }
+}

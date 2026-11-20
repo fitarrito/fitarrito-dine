@@ -14,6 +14,7 @@ import { isPanAsianCuisine } from "@lib/panAsianOrder";
 import { isSoupsCategoryName } from "@lib/soups";
 import { loadSoupsBowlsCatalog } from "@lib/soupsBowlsCatalog";
 import { resolveMenuItemImageUrl } from "@lib/menuImages";
+import { readFormatOptions, resolveItemFormat } from "@lib/menuFormat";
 import { quoteOrderItem } from "@lib/orderQuote";
 import { isBlockedMenuTitle } from "@lib/menuVisibility";
 
@@ -91,8 +92,14 @@ export async function repriceCartRows(
       throw new Error(quote.error);
     }
 
+    const resolvedFormat = resolveItemFormat(
+      readFormatOptions(menuItemRow.formatOptions),
+      row.item_format ?? row.selected_salad,
+    );
+
     return {
       ...row,
+      item_format: "itemFormat" in resolvedFormat ? resolvedFormat.itemFormat : null,
       title: menuItemRow.title,
       image_url: resolveMenuItemImageUrl({
         title: menuItemRow.title,

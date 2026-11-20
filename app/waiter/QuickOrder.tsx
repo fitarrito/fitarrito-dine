@@ -20,6 +20,7 @@ import {
 } from "@lib/fitarritoHouseMenu";
 import { quoteSizePrice } from "@lib/mexicanMiniOffer";
 import { resolveMenuItemImageUrl } from "@lib/menuImages";
+import { readFormatOptions } from "@lib/menuFormat";
 import { getAvailableProteinVariants } from "@lib/menuPricing";
 import {
   isPanAsianCategory,
@@ -71,6 +72,7 @@ type CartLine = {
   image_url?: string | null;
   selected_protein?: string | null;
   selected_size?: string | null;
+  item_format?: string | null;
 };
 
 type RepeatChoice = {
@@ -107,6 +109,7 @@ function cartPresentation(line: CartLine) {
     title: line.title,
     selected_protein: line.selected_protein,
     selected_size: line.selected_size,
+    item_format: line.item_format,
   });
   const size = customization.title.match(/\(([^)]+)\)$/)?.[1] ?? "";
   const baseName = customization.title.replace(/\s*\([^)]+\)$/, "");
@@ -121,7 +124,9 @@ function cartPresentation(line: CartLine) {
 
   if (protein.includes(":")) {
     const [category, ingredients = ""] = protein.split(":").map((part) => part.trim());
-    const details = [category];
+    const details = [customization.format ? `Format: ${customization.format}` : null, category].filter(
+      (detail): detail is string => Boolean(detail),
+    );
 
     if (ingredients && ingredients.toLowerCase() !== category.toLowerCase()) details.push(ingredients);
 
@@ -314,7 +319,8 @@ export default function QuickOrder({
         const current = cart.find((line) => String(line.id) === replaceId);
         const sameChoice =
           current?.selected_protein === choice.selectedProtein &&
-          (current.selected_size ?? null) === (choice.selectedSize ?? null);
+          (current.selected_size ?? null) === (choice.selectedSize ?? null) &&
+          (current.item_format ?? null) === (choice.itemFormat ?? null);
 
         if (sameChoice) {
           setSheet(null);
@@ -330,6 +336,7 @@ export default function QuickOrder({
           menuItemId: String(item.id),
           selectedProtein: choice.selectedProtein,
           selectedSize: choice.selectedSize,
+          itemFormat: choice.itemFormat,
           quantity,
         }),
       });
@@ -631,6 +638,7 @@ export default function QuickOrder({
                                 group,
                                 selectedProtein: line.selected_protein,
                                 selectedSize: line.selected_size,
+                                itemFormat: line.item_format,
                               }),
                             });
                           }}
@@ -764,6 +772,8 @@ function QuickOrderSheet({
   const [panCategory, setPanCategory] = useState<PanAsianCategory | null>(
     initial?.panCategory ?? (defaultPan && isPanAsianCategory(defaultPan) ? defaultPan : null),
   );
+  const formatOptions = readFormatOptions(item.formatOptions);
+  const [itemFormat, setItemFormat] = useState(initial?.itemFormat ?? "");
   const [ingredient, setIngredient] = useState(initial?.ingredient ?? "");
   const [starterCategory, setStarterCategory] = useState<AsianStartersGravyCategory | null>(
     initial?.starterCategory ??
@@ -784,6 +794,7 @@ function QuickOrderSheet({
     starterCategory,
     saladType,
     toppings: selectedToppings,
+    itemFormat,
   };
   const quote = quoteWaiterChoice(item, group, input);
   const panIngredients =
@@ -805,6 +816,7 @@ function QuickOrderSheet({
     setProtein(repeat.input.protein ?? "");
     setServing(repeat.input.serving === "Bowl" ? "Bowl" : "Soup");
     setPanCategory(repeat.input.panCategory ?? panCategory);
+    setItemFormat(repeat.input.itemFormat ?? "");
     setIngredient(repeat.input.ingredient ?? "");
     setStarterCategory(repeat.input.starterCategory ?? starterCategory);
     setSaladType(repeat.input.saladType ?? saladType);
@@ -894,6 +906,17 @@ function QuickOrderSheet({
         ) : null}
         {(group === "pan-asian" || group === "soups") && panPrices.length > 0 && !useSoupsBowls ? (
           <>
+            {formatOptions.length > 1 ? (
+              <ChoiceButtons
+                label="Choose your base"
+                value={itemFormat || null}
+                options={formatOptions.map((option) => ({ id: option, label: option }))}
+                onChange={(value) => {
+                  setItemFormat(value);
+                  setError(null);
+                }}
+              />
+            ) : null}
             <ChoiceButtons
               label="Choice"
               value={panCategory}

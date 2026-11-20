@@ -64,7 +64,8 @@
 .icon:has(.iconImage[src*="desserts"]),
 .icon:has(.iconImage[src*="soups"]),
 .icon:has(.iconImage[src*="bowls"]),
-.icon:has(.iconImage[src*="beverages"]) {
+.icon:has(.iconImage[src*="beverages"]),
+.icon:has(.iconImage[src*="mala"]) {
   width: 1.85rem;
   height: 1.28rem;
   border-radius: 0;
@@ -84,6 +85,20 @@
   overflow-wrap: break-word;
 }
 
+@media (max-width: 767px) {
+  .subRow {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .subItem {
+    min-width: 0;
+    padding: 0.55rem 0.15rem 0.45rem;
+    font-size: 0.65rem;
+  }
+}
+
 @media (min-width: 768px) {
   .subItem {
     flex-basis: 0;
@@ -101,7 +116,8 @@
   .icon:has(.iconImage[src*="desserts"]),
   .icon:has(.iconImage[src*="soups"]),
 .icon:has(.iconImage[src*="bowls"]),
-  .icon:has(.iconImage[src*="beverages"]) {
+  .icon:has(.iconImage[src*="beverages"]),
+  .icon:has(.iconImage[src*="mala"]) {
     width: 2.15rem;
     height: 1.45rem;
   }

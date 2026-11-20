@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FaClock, FaPowerOff, FaStore } from "react-icons/fa";
+import { FaHistory, FaPowerOff, FaRegCalendarAlt, FaRegClock, FaStore } from "react-icons/fa";
 import { fetchJson } from "@lib/apiFetch";
 import { formatKolkataDateTime } from "@lib/onlineOrdering";
 import styles from "./dashboard.module.css";
@@ -136,6 +136,7 @@ export default function OrderingControl() {
   const offline = setting?.online_ordering_enabled === false;
   const busy = loading || saving || !setting;
   const updatedLabel = formatKolkataDateTime(setting?.updated_at ?? null);
+  const [updatedDate, updatedTime] = updatedLabel?.split(", ") ?? [];
 
   return (
     <section
@@ -145,32 +146,45 @@ export default function OrderingControl() {
       <div className={styles.orderingMain}>
         <span className={styles.storeBadge} aria-hidden>
           <FaStore />
-          <span className={offline ? styles.offlineDot : styles.liveDot} />
         </span>
         <div>
-          <h2>
-            {!setting ? (
-              "Checking online ordering"
-            ) : offline ? (
-              <>
-                Online Ordering is <span className={styles.offlineWord}>OFFLINE</span>
-              </>
-            ) : (
-              <>
-                Online Ordering is <span className={styles.liveWord}>LIVE</span>
-              </>
-            )}
-          </h2>
-          {!setting ? <p>Loading the current ordering status.</p> : null}
+          <h2>Online Ordering</h2>
+          <p className={offline ? styles.statusOffline : styles.statusLive}>
+            <span className={offline ? styles.offlineDot : styles.liveDot} aria-hidden />
+            {!setting
+              ? "Checking status"
+              : offline
+                ? "OFFLINE · Not accepting orders"
+                : "LIVE · Accepting orders"}
+          </p>
         </div>
       </div>
 
       <div className={styles.orderingSchedule}>
-        <p className={styles.scheduleLine}>
-          <FaClock aria-hidden /> Automatically goes online every day at 10:00{"\u00A0"}AM
+        <p className={styles.metaLabel}>
+          <FaRegCalendarAlt aria-hidden /> Auto online schedule
         </p>
-        <p className={styles.updatedLabel}>Last updated</p>
-        <p className={styles.updatedTime}>{updatedLabel ?? "Waiting for confirmation"}</p>
+        <p className={styles.metaTitle}>Every day at</p>
+        <p className={styles.timePill}>
+          <FaRegClock aria-hidden />
+          10:00 AM
+        </p>
+      </div>
+
+      <div className={styles.orderingUpdated}>
+        <p className={styles.metaLabel}>
+          <FaHistory aria-hidden /> Last status update
+        </p>
+        <p className={styles.metaRow}>
+          <FaRegCalendarAlt aria-hidden />
+          {updatedDate ?? "Waiting for confirmation"}
+        </p>
+        {updatedTime ? (
+          <p className={styles.metaRow}>
+            <FaRegClock aria-hidden />
+            {updatedTime}
+          </p>
+        ) : null}
       </div>
 
       <div className={styles.orderingActions}>

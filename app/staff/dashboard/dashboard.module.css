@@ -96,7 +96,23 @@
   color: #fff;
   font-size: 0.75rem;
   font-weight: 900;
+  letter-spacing: 0.04em;
   padding: 0.35rem 0.65rem;
+}
+
+.placedAt {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.28rem 0 0.1rem;
+  color: var(--customTheme, #fc1e1e);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.placedAt svg {
+  flex: 0 0 auto;
+  font-size: 0.95rem;
 }
 
 @keyframes alertPulse {
@@ -289,80 +305,79 @@
 
 .orderingLive,
 .orderingOffline {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(180px, auto) auto;
-  gap: 0.9rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 0.85rem 0.4rem;
   margin: 0 0 1rem;
-  padding: 1rem 1.1rem;
-  border-radius: 18px;
+  padding: 0.85rem 1rem;
+  border-radius: 22px;
 }
 
 .orderingLive {
-  border: 1px solid #d7f3e3;
+  border: 1px solid #d9f3e4;
   background: #f3fbf6;
-  box-shadow: 0 10px 28px rgba(22, 163, 74, 0.06);
 }
 
 .orderingOffline {
   border: 1px solid #fecaca;
   background: #fff7f7;
-  box-shadow: 0 10px 28px rgba(252, 30, 30, 0.06);
 }
 
 .orderingMain {
   display: flex;
-  align-items: flex-start;
-  gap: 0.85rem;
-  min-width: 0;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 12.5rem;
+  padding-right: 0.85rem;
 }
 
 .orderingMain h2 {
   margin: 0;
   color: #111827;
-  font-size: 1.25rem;
-  font-weight: 900;
+  font-size: 1.05rem;
+  font-weight: 800;
   line-height: 1.2;
 }
 
-.orderingMain p {
-  margin: 0.3rem 0 0;
-  color: #4b5563;
-  font-size: 0.92rem;
-  line-height: 1.4;
-}
-
-.liveWord {
-  color: #16a34a;
-}
-
-.offlineWord {
-  color: var(--customTheme, #fc1e1e);
-}
-
 .storeBadge {
-  position: relative;
   display: grid;
   place-items: center;
-  width: 3.1rem;
-  height: 3.1rem;
+  width: 3rem;
+  height: 3rem;
   flex-shrink: 0;
   border-radius: 999px;
   background: #fff;
   color: var(--customTheme, #fc1e1e);
-  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.06);
-  font-size: 1.25rem;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.06);
+  font-size: 1.15rem;
+}
+
+.statusLive,
+.statusOffline {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.statusLive {
+  color: #16a34a;
+}
+
+.statusOffline {
+  color: var(--customTheme, #fc1e1e);
 }
 
 .liveDot,
 .offlineDot {
-  position: absolute;
-  right: 0.15rem;
-  bottom: 0.15rem;
-  width: 0.75rem;
-  height: 0.75rem;
-  border: 2px solid #fff;
+  width: 0.48rem;
+  height: 0.48rem;
   border-radius: 999px;
+  flex-shrink: 0;
 }
 
 .liveDot {
@@ -373,36 +388,64 @@
   background: var(--customTheme, #fc1e1e);
 }
 
-.orderingSchedule {
-  min-width: 0;
-}
-
-.scheduleLine {
+.orderingSchedule,
+.orderingUpdated {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: 0.4rem;
-  margin: 0;
-  color: #4b5563;
-  font-size: 0.84rem;
-  font-weight: 800;
-  line-height: 1.35;
+  gap: 0.18rem;
+  min-width: 0;
+  padding: 0.15rem 1.15rem;
+  border-left: 1px solid #e4f4ea;
 }
 
-.scheduleLine svg {
-  margin-top: 0.15rem;
+.orderingOffline .orderingSchedule,
+.orderingOffline .orderingUpdated {
+  border-left-color: #fee2e2;
+}
+
+.metaLabel,
+.metaTitle,
+.metaRow,
+.timePill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.metaLabel {
+  color: #9ca3af;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.metaTitle,
+.metaRow {
+  color: #111827;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.metaRow {
+  gap: 0.45rem;
+}
+
+.metaLabel svg,
+.metaRow svg {
+  color: #9ca3af;
   flex-shrink: 0;
 }
 
-.updatedLabel {
-  margin: 0.35rem 0 0;
-  color: #9ca3af;
-  font-size: 0.75rem;
-}
-
-.updatedTime {
-  margin: 0.1rem 0 0;
-  color: #111827;
-  font-size: 0.95rem;
+.timePill {
+  margin-top: 0.12rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: #e8f8ee;
+  color: #16a34a;
+  font-size: 0.82rem;
   font-weight: 800;
 }
 
@@ -410,7 +453,8 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.7rem;
+  gap: 0.55rem;
+  margin-left: auto;
 }
 
 .switchOn,
@@ -477,7 +521,7 @@
 
 .orderingSuccess,
 .orderingError {
-  grid-column: 1 / -1;
+  flex: 1 0 100%;
   margin: 0;
   font-weight: 800;
 }
@@ -500,15 +544,17 @@
     justify-content: flex-start;
   }
 
-  .orderingLive,
-  .orderingOffline {
-    grid-template-columns: 1fr;
+  .orderingSchedule,
+  .orderingUpdated {
+    border-left: 0;
+    padding-left: 0;
   }
 
   .orderingActions {
     align-items: flex-start;
     flex-direction: row;
     flex-wrap: wrap;
+    margin-left: 0;
   }
 }
 

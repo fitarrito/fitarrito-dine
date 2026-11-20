@@ -19,6 +19,8 @@ import {
   type PanAsianCategory,
   type PanAsianIngredient,
 } from "@lib/panAsianOrder";
+import { formatChoicePrompt, readFormatOptions } from "@lib/menuFormat";
+import { isMalaCategoryName } from "@lib/mala";
 import { isSoupsCategoryName } from "@lib/soups";
 import type { menuItem } from "@/types/types";
 import cardStyles from "./SoupsMenu.module.css";
@@ -90,6 +92,12 @@ export function PanAsianMenuCard({
     () => sortPanAsianIngredients((item.panAsianIngredients ?? []).filter((row) => row.is_available)),
     [item.panAsianIngredients],
   );
+  const formatOptions = useMemo(
+    () => readFormatOptions(item.formatOptions),
+    [item.formatOptions],
+  );
+  const requiresFormatChoice = formatOptions.length > 1;
+  const [format, setFormat] = useState<string | null>(null);
   const [category, setCategory] = useState<PanAsianCategory>("Veg");
   const [selectedIngredient, setSelectedIngredient] = useState<string | null>(null);
   const [ingredientsOpen, setIngredientsOpen] = useState(true);
@@ -106,11 +114,20 @@ export function PanAsianMenuCard({
         ? [selectedIngredient]
         : []
       : categoryIngredients.map((row) => row.ingredient_name);
+  const selectedFormat = requiresFormatChoice
+    ? formatOptions.find((option) => option.toLowerCase() === format?.toLowerCase()) ?? null
+    : formatOptions[0] ?? null;
   const canAdd = chosenIngredients.length > 0 && selectedPrice > 0;
+  const needsFormat = !orderingPaused && requiresFormatChoice && !selectedFormat;
   const needsProtein = !orderingPaused && !canAdd;
 
   const handleAddToCart = async () => {
     if (orderingPaused || isAdding) return;
+
+    if (needsFormat) {
+      setActionError(formatChoicePrompt(formatOptions));
+      return;
+    }
 
     if (!canAdd) {
       setActionError("Choose one protein.");
@@ -127,6 +144,7 @@ export function PanAsianMenuCard({
           sessionId: session.sessionId,
           menuItemId: String(item.id),
           selectedProtein: encodePanAsianSelection(category, chosenIngredients),
+          itemFormat: selectedFormat,
           quantity,
         }),
       );
@@ -163,6 +181,32 @@ export function PanAsianMenuCard({
         </p>
         <h3 className={cardStyles.title}>{item.title}</h3>
         {item.description ? <p className={cardStyles.description}>{item.description}</p> : null}
+
+        {requiresFormatChoice ? (
+          <div className={styles.baseChoice}>
+            <p className={styles.baseLabel}>Choose your base</p>
+            <div className={styles.baseOptions}>
+              {formatOptions.map((option) => {
+                const active = selectedFormat === option;
+
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    className={`${styles.baseOption} ${active ? styles.baseOptionActive : ""}`}
+                    onClick={() => {
+                      setFormat(option);
+                      setActionError(null);
+                    }}
+                    aria-pressed={active}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div className={proteinStyles.proteins}>
           {PAN_ASIAN_CATEGORIES.map((option) => {
@@ -252,13 +296,13 @@ export function PanAsianMenuCard({
             className={`${cardStyles.addButton} ${
               orderingPaused
                 ? cardStyles.addButtonClosed
-                : needsProtein
+                : needsFormat || needsProtein
                   ? proteinStyles.addButtonInactive
                   : ""
             }`}
             onClick={() => void handleAddToCart()}
             disabled={orderingPaused || isAdding}
-            aria-disabled={needsProtein || orderingPaused || isAdding}
+            aria-disabled={needsFormat || needsProtein || orderingPaused || isAdding}
             aria-busy={isAdding}
           >
             {isAdding ? (
@@ -266,7 +310,13 @@ export function PanAsianMenuCard({
             ) : (
               <FaShoppingCart aria-hidden />
             )}
-            {orderingPaused ? "Ordering Closed" : isAdding ? "Adding..." : "Add to Cart"}
+            {orderingPaused
+              ? "Ordering Closed"
+              : isAdding
+                ? "Adding..."
+                : needsFormat
+                  ? "Choose your base"
+                  : "Add to Cart"}
           </button>
         </div>
         {actionError ? <p className={cardStyles.actionError}>{actionError}</p> : null}
@@ -331,7 +381,9 @@ export default function PanAsianMenu({
         if ((item.order_type ?? "on_demand") !== "on_demand") return false;
         if ((item.panAsianPrices?.length ?? 0) === 0) return false;
 
-        return !isSoupsCategoryName(categoryNameById.get(Number(item.categoryId)));
+        const categoryName = categoryNameById.get(Number(item.categoryId));
+
+        return !isSoupsCategoryName(categoryName) && !isMalaCategoryName(categoryName);
       }),
     );
   }, [categories, items]);
@@ -350,7 +402,9 @@ export default function PanAsianMenu({
       );
       const name = category?.name ?? "";
 
-      if (isSoupsCategoryName(name) || isDessertsCategoryName(name)) continue;
+      if (isSoupsCategoryName(name) || isDessertsCategoryName(name) || isMalaCategoryName(name)) {
+        continue;
+      }
 
       const key = name || "Pan Asian";
       const group = groups.get(key) ?? {

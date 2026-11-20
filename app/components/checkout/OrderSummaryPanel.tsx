@@ -86,7 +86,7 @@ export default function OrderSummaryPanel({
         {cartItems.map((item) => {
           const cartItemId =
             item.id ||
-            `${item.title}-${item.selected_protein || "default"}-${item.selected_size || "regular"}`;
+            `${item.title}-${item.item_format || "base"}-${item.selected_protein || "default"}-${item.selected_size || "regular"}`;
           const customization = getCartItemCustomization(item);
 
           return (
@@ -103,6 +103,9 @@ export default function OrderSummaryPanel({
 
               <div className={styles.itemDetails}>
                 <p className={styles.itemTitle}>{customization.title}</p>
+                {customization.format ? (
+                  <p className={styles.itemMeta}>Format: {customization.format}</p>
+                ) : null}
                 {customization.protein ? (
                   <p className={styles.itemMeta}>Protein: {customization.protein}</p>
                 ) : null}
