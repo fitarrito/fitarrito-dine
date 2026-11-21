@@ -32,6 +32,7 @@ import {
   saveCheckoutDelivery,
   type CheckoutDelivery,
 } from "@lib/checkoutDelivery";
+import { calculateDeliveryFee } from "@lib/deliveryFee";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import { unavailableCartMessage } from "@lib/menuVisibility";
 import { ONLINE_ORDERING_CLOSED_TITLE } from "@lib/onlineOrdering";
@@ -128,6 +129,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const cartItems = useAppSelector((state) => state.cart.cartItems);
+  const subtotal = useAppSelector((state) => state.cart.totalAmt);
   const loading = useAppSelector((state) => state.cart.loading);
   const [form, setForm] = useState<CheckoutDelivery>(EMPTY_CHECKOUT_DELIVERY);
   const [formError, setFormError] = useState<string | null>(null);
@@ -733,7 +735,16 @@ export default function CheckoutPage() {
       </div>
 
       <FreeDeliveryCelebration
-        quote={confirmedQuote}
+        quote={
+          confirmedQuote == null
+            ? null
+            : {
+                distanceKm: confirmedQuote.distanceKm,
+                deliveryCharge:
+                  calculateDeliveryFee(confirmedQuote.distanceKm, subtotal) ??
+                  confirmedQuote.deliveryCharge,
+              }
+        }
         quoteFailed={deliveryQuoteFailed}
       />
     </div>

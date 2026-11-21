@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FaTruck } from "react-icons/fa";
-import { FREE_DELIVERY_KM } from "@lib/deliveryFee";
+import { FREE_DELIVERY_ORDER_KM } from "@lib/deliveryFee";
 import styles from "./FreeDeliveryCelebration.module.css";
 
 const VISIBLE_MS = 4000;
@@ -37,7 +37,7 @@ function isConfirmedFreeDelivery(quote: ConfirmedDeliveryQuote | null) {
     quote.deliveryCharge === 0 &&
     Number.isFinite(quote.distanceKm) &&
     quote.distanceKm >= 0 &&
-    quote.distanceKm <= FREE_DELIVERY_KM
+    quote.distanceKm <= FREE_DELIVERY_ORDER_KM
   );
 }
 

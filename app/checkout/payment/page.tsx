@@ -39,6 +39,7 @@ import {
   PaymentCancelledError,
   PaymentFailedError,
 } from "@lib/razorpayCheckout";
+import { calculateDeliveryFee } from "@lib/deliveryFee";
 import { formatRupees } from "@lib/razorpayFee";
 import { calculateOrderTotals } from "@lib/orderTotals";
 import { useAppDispatch, useAppSelector } from "@lib/hooks";
@@ -327,10 +328,11 @@ export default function CheckoutPaymentPage() {
   }
 
   const existingPayment = loadVerifiedPayment();
-  const payableAmount = calculateOrderTotals(
-    totalAmount,
-    delivery.deliveryCharge ?? 0,
-  ).total;
+  const deliveryCharge =
+    delivery.distanceKm == null || delivery.deliveryCharge == null
+      ? (delivery.deliveryCharge ?? 0)
+      : (calculateDeliveryFee(delivery.distanceKm, totalAmount) ?? delivery.deliveryCharge);
+  const payableAmount = calculateOrderTotals(totalAmount, deliveryCharge).total;
   const payLabel = existingPayment
     ? "Complete Order"
     : `Pay ${formatRupees(payableAmount)} Securely`;

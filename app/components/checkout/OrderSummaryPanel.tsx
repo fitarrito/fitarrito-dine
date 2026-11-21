@@ -15,7 +15,7 @@ import { useAppDispatch, useAppSelector } from "@lib/hooks";
 import { removeCartItem } from "@lib/features/cartSlice";
 import { getCartSession } from "@lib/cartSession";
 import { getCartItemCustomization } from "@lib/fitarritoHouseMenu";
-import { formatDistanceKm } from "@lib/deliveryFee";
+import { calculateDeliveryFee, deliveryFeeNote, formatDistanceKm } from "@lib/deliveryFee";
 import { calculateOrderTotals, GST_LABEL } from "@lib/orderTotals";
 import { formatRupees } from "@lib/razorpayFee";
 import {
@@ -52,7 +52,11 @@ export default function OrderSummaryPanel({
   const ordering = useOnlineOrdering();
   const orderingClosed = ordering.enabled === false;
   const isPayment = variant === "payment";
-  const totals = calculateOrderTotals(subtotal, deliveryCharge ?? 0);
+  const pricedDelivery =
+    deliveryCharge == null || distanceKm == null
+      ? deliveryCharge
+      : calculateDeliveryFee(distanceKm, subtotal);
+  const totals = calculateOrderTotals(subtotal, pricedDelivery ?? 0);
   const totalAmount = totals.total;
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
@@ -157,18 +161,16 @@ export default function OrderSummaryPanel({
         <div className={styles.totalRow}>
           <span>Delivery charge</span>
           <span>
-            {deliveryCharge == null
+            {pricedDelivery == null
               ? "—"
-              : deliveryCharge === 0
+              : pricedDelivery === 0
                 ? "₹0"
-                : formatRupees(deliveryCharge)}
+                : formatRupees(pricedDelivery)}
           </span>
         </div>
-        {deliveryCharge != null && distanceKm != null ? (
+        {pricedDelivery != null && distanceKm != null ? (
           <p className={styles.deliveryNote}>
-            {deliveryCharge === 0
-              ? "Congratulations! You get FREE delivery."
-              : "Delivery charge calculated based on distance."}
+            {deliveryFeeNote(distanceKm, subtotal, pricedDelivery)}
           </p>
         ) : null}
         <div className={styles.totalRow}>

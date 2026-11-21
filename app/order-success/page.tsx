@@ -15,7 +15,7 @@ import {
 } from "react-icons/fa";
 import { fetchJson } from "@lib/apiFetch";
 import { getCartSession } from "@lib/cartSession";
-import { formatDistanceKm } from "@lib/deliveryFee";
+import { deliveryFeeNote, formatDistanceKm } from "@lib/deliveryFee";
 import { formatRupees } from "@lib/razorpayFee";
 import { getWhatsAppKitchenPhone } from "@lib/whatsapp/send-order";
 import SpecialRequestsNotice from "@/components/SpecialRequestsNotice";
@@ -410,9 +410,11 @@ function OrderTrackingContent() {
             </div>
             {order.deliveryDistanceKm != null ? (
               <p className={styles.billNote}>
-                {order.deliveryCharge === 0
-                  ? "Congratulations! You get FREE delivery."
-                  : "Delivery charge calculated based on distance."}
+                {deliveryFeeNote(
+                  order.deliveryDistanceKm,
+                  order.subtotal,
+                  order.deliveryCharge,
+                )}
               </p>
             ) : null}
           </div>

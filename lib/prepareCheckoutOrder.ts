@@ -8,6 +8,7 @@ import {
   getSupabaseAdminConfig,
 } from "@lib/getSupabaseAdmin";
 import { readSpecialRequests } from "@lib/specialRequests";
+import { calculateDeliveryFee } from "@lib/deliveryFee";
 import { quoteDeliveryAddress, readDeliveryAddress } from "@lib/googleDelivery";
 import {
   isValidIndianMobile,
@@ -88,6 +89,11 @@ export async function prepareCheckoutOrder(body: Record<string, unknown>) {
     (sum, item) => sum + Number(item.price) * Number(item.quantity),
     0,
   );
+  const deliveryCharge = calculateDeliveryFee(quote.distanceKm, subtotal);
+
+  if (deliveryCharge == null) {
+    throw new RestaurantOrderError(422, "We couldn't calculate delivery for this address.");
+  }
   const menuIds = [...new Set(pricedItems.map((item) => String(item.menu_item_id)))];
   const { data: formatRows, error: formatError } = await supabase
     .from("MenuItem")
@@ -157,7 +163,7 @@ export async function prepareCheckoutOrder(body: Record<string, unknown>) {
     landmark: address.landmark,
     deliveryInstructions: String(body.deliveryInstructions ?? "").trim(),
     specialRequests: parsedRequests.specialRequests,
-    quote,
+    quote: { ...quote, deliveryCharge },
     items,
     subtotal,
   });
