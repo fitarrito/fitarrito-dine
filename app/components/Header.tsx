@@ -1,12 +1,13 @@
 "use client";
 import React, { useRef, useState } from "react";
+import { Anton } from "next/font/google";
 import CartDrawer from "../components/CartDrawer";
-import Image from "next/image";
 import Link from "next/link";
-import textImage from "../../public/images/fitarrito.svg";
-import logo from "../../public/images/logo.svg";
 import { FaShoppingCart } from "react-icons/fa";
 import { useAppSelector } from "@lib/hooks";
+import styles from "./Header.module.css";
+
+const wordmark = Anton({ weight: "400", subsets: ["latin"] });
 
 const Header: React.FC = () => {
   const navRef = useRef<HTMLDivElement>(null);
@@ -51,38 +52,19 @@ const Header: React.FC = () => {
             className=" bg-nav-color-dark w-full max-w-full justify-between  shadow-customShadow-md laptop:w-[80vw] text-white inline-flex items-center py-1 mobile:py-3 px-1 md:px-4 lg laptop:rounded-full laptop:my-4  laptop:inline-flex overflow-visible"
             style={{ overflow: "visible" }}
           >
-            <div className="flex items-center">
-              <div>
-                <Link
-                  href="/"
-                  className=" transition ease-in-out duration-150  px-3 py-1 justify-center mobile:px-3 mobile:py-2 rounded-xl text-xs mobile:text-base min-w-[50px] mobile:w-[50px]  flex"
-                >
-                  <Image
-                    src={logo}
-                    alt="Fitarrito logo"
-                    width={55}
-                    height={55}
-                    priority
-                    style={{ width: "auto", height: "3rem" }}
-                  />
-                </Link>
-              </div>
-              <div>
-                <Link
-                  href="/"
-                  className=" transition ease-in-out duration-150  px-3 py-1 justify-center mobile:px-3 mobile:py-2 rounded-xl text-xs mobile:text-base  mobile:w-[100px] flex"
-                >
-                  <Image
-                    src={textImage}
-                    alt="Fitarrito"
-                    width={130}
-                    height={90}
-                    priority
-                    style={{ width: "auto", height: "2.5rem" }}
-                  />
-                </Link>
-              </div>
-            </div>
+            <Link href="/" className={styles.brand} aria-label="Fitarrito home">
+              <span className={`${styles.mark} ${wordmark.className}`} aria-hidden>
+                F
+              </span>
+              <span className={styles.identity}>
+                <span className={`${styles.wordmark} ${wordmark.className}`}>FITARRITO</span>
+                <span className={styles.tagline}>
+                  <span aria-hidden />
+                  FROM SEOUL TO SALSA
+                  <span aria-hidden />
+                </span>
+              </span>
+            </Link>
 
             <div
               className="z-40 flex flex-row gap-3 items-center overflow-visible"

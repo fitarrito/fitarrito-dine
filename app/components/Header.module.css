@@ -1,0 +1,85 @@
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.35rem 0.7rem;
+  color: #fc1e1e;
+  text-decoration: none;
+}
+
+.mark {
+  display: grid;
+  width: 2.55rem;
+  height: 2.55rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.7rem;
+  background: #fc1e1e;
+  color: #fff;
+  font-size: 1.85rem;
+  line-height: 1;
+  box-shadow: 0 8px 16px rgba(252, 30, 30, 0.22);
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wordmark {
+  margin: 0;
+  color: #fc1e1e;
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  letter-spacing: 0.03em;
+  line-height: 0.9;
+}
+
+.tagline {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.22rem 0 0;
+  color: #b42323;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tagline span {
+  width: 0.75rem;
+  height: 2px;
+  flex: 0 0 auto;
+  background: #b42323;
+}
+
+@media (max-width: 520px) {
+  .brand {
+    gap: 0.45rem;
+    padding-right: 0.35rem;
+    padding-left: 0.45rem;
+  }
+
+  .mark {
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 1.55rem;
+  }
+
+  .wordmark {
+    font-size: 1.15rem;
+  }
+
+  .tagline {
+    gap: 0.25rem;
+    font-size: 0.46rem;
+    letter-spacing: 0.08em;
+  }
+
+  .tagline span {
+    width: 0.5rem;
+  }
+}
