@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isStaffHostHeaderList } from "@lib/staffHost";
-import OrderTypeScreen from "./components/OrderTypeScreen";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +12,5 @@ export default async function Home() {
     headerStore.get("host"),
   ]);
 
-  if (isStaffSite) {
-    redirect("/staff/dashboard");
-  }
-
-  return <OrderTypeScreen />;
+  redirect(isStaffSite ? "/staff/dashboard" : "/menu");
 }
