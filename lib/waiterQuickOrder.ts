@@ -37,7 +37,8 @@ import {
 } from "@lib/panAsianOrder";
 import { readFormatOptions, resolveItemFormat } from "@lib/menuFormat";
 import { FIXED_MENU_SELECTION, isBlockedMenuTitle } from "@lib/menuVisibility";
-import { encodeSoupSelection, isSoupsCategoryName, quoteSoupSelection } from "@lib/soups";
+import { isMalaCategoryName, sortMalaDishes } from "@lib/mala";
+import { encodeSoupSelection, isSoupsCategoryName, quoteSoupSelection, sortSoupsAndBowls } from "@lib/soups";
 import {
   decodeSoupsBowlsSelection,
   encodeSoupsBowlsSelection,
@@ -49,11 +50,11 @@ import {
 
 export const WAITER_MENU_GROUPS = [
   { id: "all", label: "All" },
+  { id: "soups", label: "Soups & Bowls" },
   { id: "mexican", label: "Mexican" },
   { id: "pan-asian", label: "Pan Asian" },
-  { id: "fitarrito-house", label: "Fitarrito House" },
+  { id: "mala", label: "Mala" },
   { id: "asian-starters-gravy", label: "Asian Starters" },
-  { id: "soups", label: "Soups & Bowls" },
   { id: "desserts", label: "Desserts" },
   { id: "beverages", label: "Beverages" },
 ] as const;
@@ -83,41 +84,56 @@ export type WaiterChoiceInput = {
 };
 
 const GROUP_ORDER: WaiterDishGroup[] = [
+  "soups",
   "mexican",
   "pan-asian",
-  "fitarrito-house",
+  "mala",
   "asian-starters-gravy",
-  "soups",
   "desserts",
   "beverages",
 ];
+
+export type WaiterMenuCategory = {
+  id: number;
+  name: string;
+};
+
+export type WaiterMenuBlock = {
+  title: string | null;
+  items: menuItem[];
+};
+
+export type WaiterMenuSection = {
+  group: WaiterDishGroup;
+  label: string;
+  blocks: WaiterMenuBlock[];
+};
 
 export function waiterGroupLabel(group: WaiterDishGroup) {
   return WAITER_MENU_GROUPS.find((entry) => entry.id === group)?.label ?? group;
 }
 
+function categoryNameFor(item: menuItem, categories: WaiterMenuCategory[]) {
+  return (
+    categories.find((category) => Number(category.id) === Number(item.categoryId))?.name ??
+    item.category ??
+    ""
+  );
+}
+
 export function waiterGroupForItem(
   item: menuItem,
-  soupCategoryIds: Set<number>,
-  dessertCategoryIds: Set<number> = new Set(),
+  categories: WaiterMenuCategory[] = [],
 ): WaiterDishGroup | null {
   if ((item.order_type ?? "on_demand") !== "on_demand") return null;
   if (isBlockedMenuTitle(item.title)) return null;
   if (item.is_available === false) return null;
 
-  if (
-    dessertCategoryIds.has(Number(item.categoryId)) ||
-    isDessertsCategoryName(item.category)
-  ) {
-    return "desserts";
-  }
+  const categoryName = categoryNameFor(item, categories);
 
-  if (
-    soupCategoryIds.has(Number(item.categoryId)) ||
-    isSoupsCategoryName(item.category)
-  ) {
-    return "soups";
-  }
+  if (isDessertsCategoryName(categoryName)) return "desserts";
+  if (isSoupsCategoryName(categoryName)) return "soups";
+  if (isMalaCategoryName(categoryName)) return "mala";
 
   if (isAsianStartersGravyCuisine(item.cuisine)) {
     if (isAsianGravyDish(item)) return null;
@@ -128,25 +144,103 @@ export function waiterGroupForItem(
   const cuisine = item.cuisine?.trim().toLowerCase();
 
   if (cuisine === "mexican") return "mexican";
-  if (cuisine === "fitarrito house") return "fitarrito-house";
   if (cuisine === "beverages") return "beverages";
-  if (isPanAsianCuisine(item.cuisine)) return "pan-asian";
+  if (!isPanAsianCuisine(item.cuisine)) return null;
 
-  return null;
+  const hasPrices = (item.panAsianPrices?.length ?? 0) > 0;
+  const hasVariants =
+    (item.proteinVariants?.length ?? 0) > 0 || (item.sizeVariants?.length ?? 0) > 0;
+
+  return hasPrices || hasVariants ? "pan-asian" : null;
 }
 
 export function sortWaiterDishes(items: menuItem[], group: WaiterDishGroup) {
   if (group === "pan-asian") return sortPanAsianDishes(items);
+  if (group === "mala") return sortMalaDishes(items);
   if (group === "desserts") return sortDessertDishes(items);
-  if (group === "soups") {
-    return items.slice().sort((left, right) => Number(left.id) - Number(right.id));
-  }
+  if (group === "soups") return sortSoupsAndBowls(items);
 
   if (group === "asian-starters-gravy") {
     return sortAsianStarterDishes(items.filter((item) => !isAsianGravyDish(item)));
   }
 
   return items.slice().sort((left, right) => left.title.localeCompare(right.title));
+}
+
+function sectionLabel(group: WaiterDishGroup, categories: WaiterMenuCategory[]) {
+  if (group === "soups") {
+    return categories.find((category) => isSoupsCategoryName(category.name))?.name ?? waiterGroupLabel(group);
+  }
+
+  return waiterGroupLabel(group);
+}
+
+function blocksForGroup(
+  group: WaiterDishGroup,
+  items: menuItem[],
+  categories: WaiterMenuCategory[],
+): WaiterMenuBlock[] {
+  if (group === "mexican") {
+    const ordered = categories
+      .filter((category) =>
+        items.some((item) => Number(item.categoryId) === Number(category.id)),
+      )
+      .sort((left, right) => left.id - right.id);
+    const used = new Set(ordered.map((category) => Number(category.id)));
+    const blocks: WaiterMenuBlock[] = ordered.map((category) => ({
+      title: category.name,
+      items: items.filter((item) => Number(item.categoryId) === Number(category.id)),
+    }));
+    const rest = items.filter((item) => !used.has(Number(item.categoryId)));
+
+    if (rest.length > 0) {
+      blocks.push({
+        title: null,
+        items: rest.slice().sort((left, right) => left.title.localeCompare(right.title)),
+      });
+    }
+
+    return blocks;
+  }
+
+  if (group === "pan-asian") {
+    const priced = sortPanAsianDishes(
+      items.filter((item) => (item.panAsianPrices?.length ?? 0) > 0),
+    );
+    const extras = items.filter((item) => (item.panAsianPrices?.length ?? 0) === 0);
+    const blocks: WaiterMenuBlock[] = [];
+
+    if (priced.length > 0) blocks.push({ title: null, items: priced });
+
+    const extraCategories = categories
+      .filter((category) =>
+        extras.some((item) => Number(item.categoryId) === Number(category.id)),
+      )
+      .sort((left, right) => left.id - right.id);
+    const used = new Set(extraCategories.map((category) => Number(category.id)));
+
+    for (const category of extraCategories) {
+      blocks.push({
+        title: category.name,
+        items: extras
+          .filter((item) => Number(item.categoryId) === Number(category.id))
+          .sort((left, right) => left.title.localeCompare(right.title)),
+      });
+    }
+
+    const rest = extras.filter((item) => !used.has(Number(item.categoryId)));
+
+    if (rest.length > 0) {
+      blocks.push({
+        title: priced.length > 0 ? "Pan Asian" : null,
+        items: rest.slice().sort((left, right) => left.title.localeCompare(right.title)),
+      });
+    }
+
+    return blocks;
+  }
+
+  return [{ title: null, items: sortWaiterDishes(items, group) }];
 }
 
 function pricedAmount(value: unknown) {
@@ -186,7 +280,7 @@ function hasSoupsBowlsCatalog(item: menuItem) {
 function usesPanCatalog(item: menuItem, group: WaiterDishGroup) {
   if (hasSoupsBowlsCatalog(item)) return false;
 
-  return (group === "pan-asian" || group === "soups") && hasPanCatalog(item);
+  return (group === "pan-asian" || group === "mala" || group === "soups") && hasPanCatalog(item);
 }
 
 function hasStarterCatalog(item: menuItem) {
@@ -195,13 +289,12 @@ function hasStarterCatalog(item: menuItem) {
 
 export function groupWaiterMenu(
   items: menuItem[],
-  soupCategoryIds: Set<number>,
-  dessertCategoryIds: Set<number> = new Set(),
-) {
+  categories: WaiterMenuCategory[] = [],
+): WaiterMenuSection[] {
   const grouped = new Map<WaiterDishGroup, menuItem[]>();
 
   for (const item of items) {
-    const group = waiterGroupForItem(item, soupCategoryIds, dessertCategoryIds);
+    const group = waiterGroupForItem(item, categories);
 
     if (!group) continue;
     if (waiterStartingPrice(item, group) == null) continue;
@@ -216,7 +309,13 @@ export function groupWaiterMenu(
 
     if (!dishes?.length) return [];
 
-    return [{ group, items: sortWaiterDishes(dishes, group) }];
+    return [
+      {
+        group,
+        label: sectionLabel(group, categories),
+        blocks: blocksForGroup(group, dishes, categories),
+      },
+    ];
   });
 }
 
@@ -293,7 +392,7 @@ export function waiterStartingPrice(item: menuItem, group: WaiterDishGroup) {
 }
 
 export function waiterPriceLine(item: menuItem, group: WaiterDishGroup) {
-  if (group === "mexican" || group === "fitarrito-house") {
+  if (group === "mexican") {
     const sizes = sizePriceLines(item);
 
     if (sizes.length > 1) {

@@ -10,6 +10,7 @@ import {
   decodeSoupsBowlsSelection,
   formatSoupsBowlsChoice,
 } from "@lib/soupsBowlsOrder";
+import { unpackWaiterSelection } from "@lib/waiterSelection";
 
 const ACTIVE_STATUSES = ["pending", "confirmed", "preparing"];
 
@@ -36,6 +37,7 @@ const ORDER_COLUMNS = `
   created_at,
   updated_at,
   preparation_time_minutes,
+  order_source,
   order_items (
     id,
     item_name,
@@ -76,6 +78,7 @@ type OrderRow = {
   created_at: string | null;
   updated_at: string | null;
   preparation_time_minutes: number | null;
+  order_source?: string | null;
   order_items: OrderItemRow[] | null;
 };
 
@@ -93,6 +96,7 @@ export type StaffOrder = {
   createdAt: string | null;
   updatedAt: string | null;
   preparationLabel: string | null;
+  orderSource: string | null;
   specialRequests: string | null;
   deliveryInstructions: string | null;
   items: Array<{
@@ -104,7 +108,9 @@ export type StaffOrder = {
   }>;
 };
 
-function paymentStatus(method: string) {
+function paymentStatus(method: string, status: string) {
+  if (status === "delivered" || status === "settled") return "Paid";
+
   const value = method.trim().toLowerCase();
 
   if (value === "razorpay" || value === "qr") return "Paid";
@@ -149,12 +155,13 @@ function mapOrder(order: OrderRow): StaffOrder {
     deliveryDistanceKm: null,
     total: Number(order.total),
     paymentMethod: order.payment_method,
-    paymentStatus: paymentStatus(order.payment_method ?? ""),
+    paymentStatus: paymentStatus(order.payment_method ?? "", order.status),
     status: order.status,
     createdAt: order.created_at,
     updatedAt: order.updated_at,
     preparationLabel:
       getPreparationEstimate(order.preparation_time_minutes)?.label ?? null,
+    orderSource: order.order_source ?? null,
     specialRequests: order.special_requests?.trim() || null,
     deliveryInstructions: order.delivery_instructions?.trim() || null,
     items: (order.order_items ?? []).map((item) => ({
@@ -162,14 +169,17 @@ function mapOrder(order: OrderRow): StaffOrder {
       name: item.item_name,
       format: item.item_format?.trim() || null,
       protein: (() => {
-        const soupsBowls = decodeSoupsBowlsSelection(item.selected_protein);
+        const unpacked = unpackWaiterSelection(item.selected_protein);
+        const soupsBowls = decodeSoupsBowlsSelection(unpacked.selectedProtein);
 
         if (soupsBowls) return formatSoupsBowlsChoice(soupsBowls);
 
-        return decodeDessertSelection(item.selected_protein) ||
-          decodeSoupSelection(item.selected_protein)
-          ? null
-          : item.selected_protein;
+        const hidden =
+          decodeDessertSelection(unpacked.selectedProtein) ||
+          decodeSoupSelection(unpacked.selectedProtein);
+        const protein = hidden ? null : unpacked.selectedProtein;
+
+        return [unpacked.selectedSize, protein].filter(Boolean).join(" · ") || null;
       })(),
       quantity: item.quantity,
     })),

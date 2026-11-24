@@ -12,6 +12,7 @@ import {
   FaUser,
 } from "react-icons/fa";
 import { fetchJson } from "@lib/apiFetch";
+import { calculateDineInBill } from "@lib/dineInBill";
 import {
   getCartItemCustomization,
   getSaladToppingOptions,
@@ -32,23 +33,15 @@ import {
   isAsianStartersGravyCategory,
   type AsianStartersGravyCategory,
 } from "@lib/asianStartersGravyOrder";
-import { isSoupsCategoryName } from "@lib/soups";
 import {
   soupsBowlsPricesFor,
   type SoupsBowlsServing,
 } from "@lib/soupsBowlsOrder";
 import {
-  getWaiterTableSessionId,
-  readWaiterTableNotes,
-  saveWaiterSubmittedOrder,
-  writeWaiterTableNotes,
-} from "@lib/waiterTableSession";
-import {
   groupWaiterMenu,
   immediateWaiterChoice,
   quoteWaiterChoice,
   waiterGroupForItem,
-  waiterGroupLabel,
   waiterInputFromCart,
   waiterNeedsCustomization,
   waiterPriceLine,
@@ -56,7 +49,9 @@ import {
   type WaiterChoice,
   type WaiterChoiceInput,
   type WaiterDishGroup,
+  type WaiterMenuCategory,
   type WaiterMenuGroupId,
+  type WaiterMenuSection,
 } from "@lib/waiterQuickOrder";
 import type { menuItem } from "@/types/types";
 import styles from "./QuickOrder.module.css";
@@ -89,7 +84,11 @@ type SheetRequest = {
 };
 
 function formatRupee(amount: number) {
-  return `₹${Math.round(amount).toLocaleString("en-IN")}`;
+  const rounded = Math.round((Number(amount) || 0) * 100) / 100;
+
+  return Number.isInteger(rounded)
+    ? `₹${rounded.toLocaleString("en-IN")}`
+    : `₹${rounded.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function soupServingLabel(prices: { serving_type: string; price: number | string }[]) {
@@ -152,12 +151,18 @@ function cartPresentation(line: CartLine) {
 
 export default function QuickOrder({
   table,
+  orderId,
   onSelectTable,
+  onHeld,
+  onSettle,
 }: {
-  table: string | null;
+  table: string;
+  orderId: number;
   onSelectTable: (table: string) => void;
+  onHeld: () => void;
+  onSettle: () => void;
 }) {
-  const [groups, setGroups] = useState<{ group: WaiterDishGroup; items: menuItem[] }[]>([]);
+  const [groups, setGroups] = useState<WaiterMenuSection[]>([]);
   const [itemsById, setItemsById] = useState<Map<string, menuItem>>(new Map());
   const [groupById, setGroupById] = useState<Map<string, WaiterDishGroup>>(new Map());
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -179,36 +184,31 @@ export default function QuickOrder({
 
     async function loadMenu() {
       try {
-        const [mexican, panAsian, house, starters, beverages, categories] = await Promise.all([
-          fetchJson<menuItem[]>("/api/menu?cuisine=mexican"),
-          fetchJson<menuItem[]>("/api/menu?cuisine=pan-asian"),
-          fetchJson<menuItem[]>("/api/menu?cuisine=fitarrito-house"),
-          fetchJson<menuItem[]>("/api/menu?cuisine=asian-starters-gravy"),
-          fetchJson<menuItem[]>("/api/menu?cuisine=beverages"),
-          fetchJson<{ id: number; name: string }[]>("/api/category?cuisine=pan-asian"),
-        ]);
-        const soupCategoryIds = new Set(
-          categories.filter((entry) => isSoupsCategoryName(entry.name)).map((entry) => entry.id),
-        );
-        const dessertCategoryIds = new Set(
-          categories
-            .filter((entry) => entry.name.trim().toLowerCase() === "desserts")
-            .map((entry) => entry.id),
-        );
+        const [mexican, panAsian, starters, beverages, mexicanCategories, panCategories] =
+          await Promise.all([
+            fetchJson<menuItem[]>("/api/menu?cuisine=mexican"),
+            fetchJson<menuItem[]>("/api/menu?cuisine=pan-asian"),
+            fetchJson<menuItem[]>("/api/menu?cuisine=asian-starters-gravy"),
+            fetchJson<menuItem[]>("/api/menu?cuisine=beverages"),
+            fetchJson<WaiterMenuCategory[]>("/api/category?cuisine=mexican"),
+            fetchJson<WaiterMenuCategory[]>("/api/category?cuisine=pan-asian"),
+          ]);
+        const categories = [...mexicanCategories, ...panCategories];
         const menu = groupWaiterMenu(
-          [...mexican, ...panAsian, ...house, ...starters, ...beverages],
-          soupCategoryIds,
-          dessertCategoryIds,
+          [...mexican, ...panAsian, ...starters, ...beverages],
+          categories,
         );
         const byId = new Map<string, menuItem>();
         const groupsById = new Map<string, WaiterDishGroup>();
 
         for (const section of menu) {
-          for (const item of section.items) {
-            byId.set(String(item.id), item);
-            const group = waiterGroupForItem(item, soupCategoryIds, dessertCategoryIds);
+          for (const block of section.blocks) {
+            for (const item of block.items) {
+              byId.set(String(item.id), item);
+              const group = waiterGroupForItem(item, categories);
 
-            if (group) groupsById.set(String(item.id), group);
+              if (group) groupsById.set(String(item.id), group);
+            }
           }
         }
 
@@ -242,15 +242,17 @@ export default function QuickOrder({
 
     setCart([]);
     let cancelled = false;
-    const sessionId = getWaiterTableSessionId(table);
 
     async function loadCart() {
       try {
-        const lines = await fetchJson<CartLine[]>(
-          `/api/cart?session_id=${encodeURIComponent(sessionId)}`,
+        const result = await fetchJson<{ order: { items: CartLine[]; notes: string | null } }>(
+          `/api/waiter/orders/${orderId}`,
         );
 
-        if (!cancelled) setCart(Array.isArray(lines) ? lines : []);
+        if (!cancelled) {
+          setCart(Array.isArray(result.order.items) ? result.order.items : []);
+          setNotes(result.order.notes ?? "");
+        }
       } catch (error) {
         if (!cancelled) {
           setActionError(error instanceof Error ? error.message : "Unable to load this table.");
@@ -258,13 +260,12 @@ export default function QuickOrder({
       }
     }
 
-    setNotes(readWaiterTableNotes(table));
     void loadCart();
 
     return () => {
       cancelled = true;
     };
-  }, [table]);
+  }, [orderId, table]);
 
   const visibleSections = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -273,24 +274,29 @@ export default function QuickOrder({
       .filter((section) => category === "all" || section.group === category)
       .map((section) => ({
         ...section,
-        items: section.items.filter((item) =>
-          needle ? item.title.toLowerCase().includes(needle) : true,
-        ),
+        blocks: section.blocks
+          .map((block) => ({
+            ...block,
+            items: block.items.filter((item) =>
+              needle ? item.title.toLowerCase().includes(needle) : true,
+            ),
+          }))
+          .filter((block) => block.items.length > 0),
       }))
-      .filter((section) => section.items.length > 0);
+      .filter((section) => section.blocks.length > 0);
   }, [category, groups, query]);
 
   const itemCount = cart.reduce((total, line) => total + line.quantity, 0);
   const orderAmount = cart.reduce((total, line) => total + line.price * line.quantity, 0);
 
-  async function refreshCart(sessionId: string) {
-    const lines = await fetchJson<CartLine[]>(
-      `/api/cart?session_id=${encodeURIComponent(sessionId)}`,
+  async function refreshCart() {
+    const result = await fetchJson<{ order: { items: CartLine[]; notes: string | null } }>(
+      `/api/waiter/orders/${orderId}`,
     );
-    setCart(Array.isArray(lines) ? lines : []);
+    setCart(Array.isArray(result.order.items) ? result.order.items : []);
   }
 
-  async function runCartChange(key: string, task: (sessionId: string) => Promise<void>) {
+  async function runCartChange(key: string, task: () => Promise<void>) {
     if (!table || pending.current.has(key)) return;
 
     pending.current.add(key);
@@ -298,7 +304,7 @@ export default function QuickOrder({
     setActionError(null);
 
     try {
-      await task(getWaiterTableSessionId(table));
+      await task();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update the order.");
     } finally {
@@ -314,7 +320,7 @@ export default function QuickOrder({
     quantity: number,
     replaceId?: string,
   ) {
-    await runCartChange(replaceId ?? `add-${item.id}`, async (sessionId) => {
+    await runCartChange(replaceId ?? `add-${item.id}`, async () => {
       if (replaceId) {
         const current = cart.find((line) => String(line.id) === replaceId);
         const sameChoice =
@@ -328,11 +334,10 @@ export default function QuickOrder({
         }
       }
 
-      await fetchJson("/api/cart", {
+      await fetchJson(`/api/waiter/orders/${orderId}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId,
           menuItemId: String(item.id),
           selectedProtein: choice.selectedProtein,
           selectedSize: choice.selectedSize,
@@ -345,11 +350,15 @@ export default function QuickOrder({
         [String(item.id)]: { input, summary: choice.summary },
       }));
       if (replaceId) {
-        await fetchJson(`/api/cart?id=${encodeURIComponent(replaceId)}`, { method: "DELETE" });
+        await fetchJson(`/api/waiter/orders/${orderId}/items`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: replaceId, quantity: 0 }),
+        });
       }
 
       setSheet(null);
-      await refreshCart(sessionId);
+      await refreshCart();
     });
   }
 
@@ -375,74 +384,36 @@ export default function QuickOrder({
   async function clearCart() {
     if (!table || cart.length === 0) return;
 
-    const lines = cart.slice();
-
-    await runCartChange("clear", async (sessionId) => {
-      for (const line of lines) {
-        await fetchJson(`/api/cart?id=${encodeURIComponent(String(line.id))}`, {
-          method: "DELETE",
-        });
-      }
-
-      writeWaiterTableNotes(table, "");
+    await runCartChange("clear", async () => {
+      await fetchJson(`/api/waiter/orders/${orderId}/items`, { method: "DELETE" });
       setNotes("");
-      await refreshCart(sessionId);
+      setCartOpen(false);
+      await refreshCart();
     });
   }
 
-  async function submitOrder() {
-    if (!table || cart.length === 0) return;
+  async function holdOrder() {
+    if (!table) return;
 
-    const lines = cart.slice();
-    const orderNotes = notes.trim();
-
-    await runCartChange("submit", async (sessionId) => {
-      saveWaiterSubmittedOrder({
-        id: `order-${Date.now()}`,
-        table,
-        notes: orderNotes,
-        lines: lines.map((line) => {
-          const presentation = cartPresentation(line);
-
-          return {
-            title: presentation.name,
-            detail: presentation.details.join(" · "),
-            quantity: line.quantity,
-            price: line.price,
-          };
-        }),
-        total: lines.reduce((total, line) => total + line.price * line.quantity, 0),
-        submittedAt: new Date().toISOString(),
+    await runCartChange("submit", async () => {
+      await fetchJson(`/api/waiter/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
       });
-
-      for (const line of lines) {
-        await fetchJson(`/api/cart?id=${encodeURIComponent(String(line.id))}`, {
-          method: "DELETE",
-        });
-      }
-
-      writeWaiterTableNotes(table, "");
-      setNotes("");
       setCartOpen(false);
-      await refreshCart(sessionId);
+      onHeld();
     });
   }
 
   async function changeQuantity(line: CartLine, quantity: number) {
-    await runCartChange(`qty-${line.id}`, async (sessionId) => {
-      if (quantity < 1) {
-        await fetchJson(`/api/cart?id=${encodeURIComponent(String(line.id))}`, {
-          method: "DELETE",
-        });
-      } else {
-        await fetchJson("/api/cart", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: line.id, quantity }),
-        });
-      }
-
-      await refreshCart(sessionId);
+    await runCartChange(`qty-${line.id}`, async () => {
+      await fetchJson(`/api/waiter/orders/${orderId}/items`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: line.id, quantity }),
+      });
+      await refreshCart();
     });
   }
 
@@ -466,7 +437,9 @@ export default function QuickOrder({
       {table ? <p className={styles.tableLabel}>Table {table}</p> : null}
 
       <div className={styles.categories} aria-label="Menu categories">
-        {WAITER_MENU_GROUPS.map((entry) => (
+        {WAITER_MENU_GROUPS.filter(
+          (entry) => entry.id === "all" || groups.some((section) => section.group === entry.id),
+        ).map((entry) => (
           <button
             key={entry.id}
             type="button"
@@ -474,7 +447,9 @@ export default function QuickOrder({
             aria-pressed={category === entry.id}
             onClick={() => setCategory(entry.id)}
           >
-            {entry.label}
+            {entry.id === "soups"
+              ? (groups.find((section) => section.group === "soups")?.label ?? entry.label)
+              : entry.label}
           </button>
         ))}
       </div>
@@ -499,23 +474,28 @@ export default function QuickOrder({
           <p className={styles.notice}>No dishes match that search.</p>
         ) : null}
         {visibleSections.map((section) => (
-          <section key={section.group} aria-label={waiterGroupLabel(section.group)}>
-            <h2>{waiterGroupLabel(section.group)}</h2>
-            {section.items.map((item) => (
-              <article key={item.id} className={styles.row}>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{waiterPriceLine(item, section.group)}</p>
-                </div>
-                <button
-                  type="button"
-                  className={styles.add}
-                  disabled={!table || busyKey === `add-${item.id}`}
-                  onClick={() => addItem(item, section.group)}
-                >
-                  {busyKey === `add-${item.id}` ? "..." : "+ Add"}
-                </button>
-              </article>
+          <section key={section.group} aria-label={section.label}>
+            <h2>{section.label}</h2>
+            {section.blocks.map((block) => (
+              <div key={block.title ?? section.group}>
+                {block.title ? <h3 className={styles.subhead}>{block.title}</h3> : null}
+                {block.items.map((item) => (
+                  <article key={item.id} className={styles.row}>
+                    <div>
+                      <h3>{item.title}</h3>
+                      <p>{waiterPriceLine(item, section.group)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.add}
+                      disabled={!table || busyKey === `add-${item.id}`}
+                      onClick={() => addItem(item, section.group)}
+                    >
+                      {busyKey === `add-${item.id}` ? "..." : "+ Add"}
+                    </button>
+                  </article>
+                ))}
+              </div>
             ))}
           </section>
         ))}
@@ -531,7 +511,7 @@ export default function QuickOrder({
           {table ? `Table ${table}` : "No table"} · {itemCount}{" "}
           {itemCount === 1 ? "item" : "items"}
         </span>
-        <strong>{formatRupee(orderAmount)}</strong>
+        <strong>{formatRupee(calculateDineInBill(orderAmount).total)}</strong>
       </button>
 
       {cartOpen && table ? (
@@ -667,10 +647,7 @@ export default function QuickOrder({
               <span>Special Instructions (Order level)</span>
               <input
                 value={notes}
-                onChange={(event) => {
-                  setNotes(event.target.value);
-                  writeWaiterTableNotes(table, event.target.value);
-                }}
+                onChange={(event) => setNotes(event.target.value)}
                 placeholder="e.g. serve after 10 mins, no onion etc."
               />
             </label>
@@ -678,25 +655,33 @@ export default function QuickOrder({
             <dl className={styles.totals}>
               <div>
                 <dt>Subtotal</dt>
-                <dd>{formatRupee(orderAmount)}</dd>
+                <dd>{formatRupee(calculateDineInBill(orderAmount).subtotal)}</dd>
               </div>
               <div>
-                <dt>Taxes</dt>
-                <dd>{formatRupee(0)}</dd>
+                <dt>GST (5%)</dt>
+                <dd>{formatRupee(calculateDineInBill(orderAmount).gst)}</dd>
               </div>
               <div className={styles.grandTotal}>
                 <dt>Total</dt>
-                <dd>{formatRupee(orderAmount)}</dd>
+                <dd>{formatRupee(calculateDineInBill(orderAmount).total)}</dd>
               </div>
             </dl>
 
             <button
               type="button"
               className={styles.submitOrder}
-              disabled={cart.length === 0 || busyKey === "submit"}
-              onClick={() => void submitOrder()}
+              disabled={busyKey === "submit"}
+              onClick={() => void holdOrder()}
             >
-              {busyKey === "submit" ? "Submitting..." : `Submit Order for Table ${table}`}
+              {busyKey === "submit" ? "Saving..." : "Hold Order"}
+            </button>
+            <button
+              type="button"
+              className={styles.submitOrder}
+              disabled={cart.length === 0}
+              onClick={onSettle}
+            >
+              Settle & Close
             </button>
           </div>
         </div>

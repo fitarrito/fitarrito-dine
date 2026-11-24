@@ -39,6 +39,7 @@ type StaffOrder = {
   createdAt?: string | null;
   updatedAt?: string | null;
   preparationLabel?: string | null;
+  orderSource?: string | null;
   specialRequests?: string | null;
   items: OrderItem[];
 };
@@ -831,8 +832,14 @@ export default function StaffDashboardPage() {
                     <span>Phone</span>
                     <strong>{order.customerPhone}</strong>
                   </div>
+                  {order.orderSource === "waiter" ? (
+                    <div>
+                      <span>Source</span>
+                      <strong>Waiter / Dine-in</strong>
+                    </div>
+                  ) : null}
                   <div>
-                    <span>Delivery</span>
+                    <span>{order.orderSource === "waiter" ? "Table" : "Delivery"}</span>
                     <strong>{order.deliveryLocation}</strong>
                   </div>
                   <div>

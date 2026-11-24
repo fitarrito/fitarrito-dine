@@ -86,6 +86,13 @@
   font-weight: 800;
 }
 
+.subhead {
+  margin: 0.65rem 0 0;
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .row,
 .cartLine {
   display: grid;
